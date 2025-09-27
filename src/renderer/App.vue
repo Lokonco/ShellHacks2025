@@ -56,7 +56,8 @@ function onSettingsChange(payload: any) {
       { x: 0, y: 100, z: 0 }
     ]"
     :filled="true"
-    :position="{ x: -100, y: 0 }"
+    :position="{ x: 100, y: 0 }"
+    :canvas_dimensions="{ width: 180, height: 100 }"
   ></SketchPreview>
   <ThreeSpinningCube></ThreeSpinningCube>
   <SettingsWindow @settings-change="onSettingsChange" />
