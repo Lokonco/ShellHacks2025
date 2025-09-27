@@ -7,6 +7,7 @@ import HelloWorld from './components/HelloWorld.vue'
 import ThreeSpinningCube from "./components/ThreeSpinningCube.vue";
 import PythonViewContext from "./components/python/PythonViewContext.vue";
 import SettingsWindow from "./components/settings/SettingsWindow.vue";
+import SketchPreview from "./components/SketchPreview.vue";
 
 window.electronAPI.sendMessage('Hello from App.vue!');
 
@@ -37,6 +38,7 @@ function onTextChange(value: string) {
 <!--  <HelloWorld msg="Vite + Vue" />-->
   <SettingsWindow @settings-change="onSettingsChange" />
   <PythonViewContext :prevent-automatic-code-update="preventDuringLive" @text-change="onTextChange" />
+  <SketchPreview></SketchPreview>
 </template>
 
 <style scoped>
