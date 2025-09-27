@@ -62,7 +62,7 @@ function onSettingsChange(payload: any) {
   ></SketchPreview>
   <ThreeSpinningCube></ThreeSpinningCube>
   <SettingsWindow @settings-change="onSettingsChange" />
-  <PythonInputContext :prevent-automatic-code-update="preventDuringLive" />
+  <PythonInputContext :prevent-automatic-code-update="preventDuringLive"/>
   <PythonConsoleOutput />
 </template>
 
@@ -79,4 +79,5 @@ function onSettingsChange(payload: any) {
 .logo.vue:hover {
   filter: drop-shadow(0 0 2em #42b883aa);
 }
+
 </style>

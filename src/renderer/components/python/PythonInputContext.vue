@@ -7,6 +7,8 @@ import {PythonError} from "pyodide/ffi";
 import PythonErrorPreview from './console/PythonErrorPreview.vue'
 import pythonConsole from '../../stores/pythonConsole'
 
+const redAlertUrl = new URL('../../assets/red-alert-icon.svg', import.meta.url).toString()
+
 // Error info for Approach B (runtime try/catch)
 const compileError = ref<null | {
   type: string
@@ -145,9 +147,16 @@ const createdByThis = ref(false)
 // Measurements for overlay positioning
 const lineHeightPx = ref<number>(0)
 const paddingTopPx = ref<number>(0)
+const paddingLeftPx = ref<number>(0)
 const borderTopPx = ref<number>(0)
+const borderLeftPx = ref<number>(0)
 const scrollTopRef = ref<number>(0)
+const scrollLeftRef = ref<number>(0)
+const gutterWidthPx = ref<number>(0)
 const overlayReady = ref(false)
+
+// Mirror element to measure text width for the error line
+const mirrorRef = ref<HTMLPreElement | null>(null)
 
 const overlayTop = computed(() => {
   if (!compileError.value) return 0
@@ -184,6 +193,45 @@ const overlayVisible = computed(() => {
   return overlayHeightVisual.value > 0
 })
 
+const lineTextWidthPx = ref<number>(0)
+
+function measureLineEnd() {
+  const mirror = mirrorRef.value
+  const ta = textAreaRef.value
+  if (!mirror || !ta || !compileError.value) {
+    lineTextWidthPx.value = 0
+    return
+  }
+  // Ensure mirror matches textarea font styles for accurate width
+  const taStyles = getComputedStyle(ta)
+  mirror.style.fontFamily = taStyles.fontFamily
+  mirror.style.fontSize = taStyles.fontSize
+  mirror.style.lineHeight = taStyles.lineHeight
+  mirror.style.tabSize = (taStyles as any).tabSize || '8'
+  const lines = (text.value || '').split('\n')
+  const idx = Math.max(0, Math.min(lines.length - 1, (compileError.value.lineno || 1) - 1))
+  const lineText = lines[idx] || ''
+  mirror.textContent = lineText
+  // scrollWidth gives us the actual content width in pixels
+  lineTextWidthPx.value = mirror.scrollWidth || mirror.clientWidth || 0
+}
+
+const iconLeftPx = computed(() => {
+  // left of editor wrapper + gutter + textarea left border/padding + measured content - scrollLeft
+  return gutterWidthPx.value + borderLeftPx.value + paddingLeftPx.value + lineTextWidthPx.value - scrollLeftRef.value
+})
+
+const iconSizePx = computed(() => {
+  // slightly smaller than line box height
+  return Math.min(14, Math.max(10, lineHeightPx.value * 0.75))
+})
+
+const iconTopVisual = computed(() => {
+  // center icon within the visible line area using the actual icon size
+  const centerTop = overlayTopVisual.value + Math.max(0, (overlayHeightVisual.value - iconSizePx.value) / 2)
+  return centerTop
+})
+
 function measureOverlay() {
   const ta = textAreaRef.value
   const gut = gutterRef.value
@@ -216,8 +264,14 @@ function measureOverlay() {
   lineHeightPx.value = lhPx
   paddingTopPx.value = parseFloat(gutStyles.paddingTop || '0') || 0
   borderTopPx.value = parseFloat(gutStyles.borderTopWidth || '0') || 0
+  paddingLeftPx.value = parseFloat(taStyles.paddingLeft || '0') || 0
+  borderLeftPx.value = parseFloat(taStyles.borderLeftWidth || '0') || 0
+  gutterWidthPx.value = gut.offsetWidth
   scrollTopRef.value = ta.scrollTop
+  scrollLeftRef.value = ta.scrollLeft
   overlayReady.value = true
+  // measure the error line end position whenever we re-measure
+  measureLineEnd()
 }
 
 onMounted(() => {
@@ -236,12 +290,15 @@ onMounted(() => {
     createdByThis.value = true
   }
 
-  // Sync gutter scroll with textarea scroll
+  // Sync gutter scroll with textarea scroll and track horizontal scroll for icon positioning
   const syncScroll = () => {
     if (gutterRef.value && textAreaRef.value) {
       gutterRef.value.scrollTop = textAreaRef.value.scrollTop
       scrollTopRef.value = textAreaRef.value.scrollTop
+      scrollLeftRef.value = textAreaRef.value.scrollLeft
     }
+    // re-measure icon position when scrolling
+    measureLineEnd()
   }
   if (textAreaRef.value) {
     textAreaRef.value.addEventListener('scroll', syncScroll)
@@ -277,6 +334,39 @@ onBeforeUnmount(() => {
     delete ta._onResize
   }
 })
+const tooltipVisible = ref(false)
+const tooltipX = ref(0)
+const tooltipY = ref(0)
+
+function updateTooltipPos(e: MouseEvent) {
+  const wrapper = editorWrapperRef.value
+  if (!wrapper) return
+  const rect = wrapper.getBoundingClientRect()
+  let x = e.clientX - rect.left + 12
+  let y = e.clientY - rect.top + 12
+  // Clamp inside wrapper bounds with a small margin
+  const margin = 8
+  const maxX = rect.width - margin
+  const maxY = rect.height - margin
+  if (x > maxX) x = maxX
+  if (y > maxY) y = maxY
+  if (x < margin) x = margin
+  if (y < margin) y = margin
+  tooltipX.value = x
+  tooltipY.value = y
+}
+
+function onIconEnter(e: MouseEvent) {
+  updateTooltipPos(e)
+  tooltipVisible.value = true
+}
+function onIconMove(e: MouseEvent) {
+  if (!tooltipVisible.value) return
+  updateTooltipPos(e)
+}
+function onIconLeave() {
+  tooltipVisible.value = false
+}
 </script>
 
 <template>
@@ -294,6 +384,29 @@ onBeforeUnmount(() => {
         :style="{ top: overlayTopVisual + 'px', height: overlayHeightVisual + 'px' }"
         aria-hidden="true"
       />
+      <!-- error icon at end of error line text -->
+      <img
+        v-if="compileError && overlayReady && overlayVisible"
+        class="error-icon"
+        :src="redAlertUrl"
+        :style="{ top: iconTopVisual + 'px', left: iconLeftPx + 'px', height: iconSizePx + 'px' }"
+        alt="error"
+        aria-hidden="true"
+        @mouseenter="onIconEnter"
+        @mousemove="onIconMove"
+        @mouseleave="onIconLeave"
+      />
+      <!-- moving tooltip with PythonErrorPreview shown only while hovering the error icon -->
+      <div
+        v-if="tooltipVisible && compileError && overlayReady && overlayVisible"
+        class="error-tooltip"
+        :style="{ top: tooltipY + 'px', left: tooltipX + 'px' }"
+        aria-hidden="true"
+      >
+        <div class="tooltip-inner">
+          <PythonErrorPreview :error="compileError" />
+        </div>
+      </div>
       <div class="line-gutter" ref="gutterRef" aria-hidden="true">
         <div
           v-for="n in lineNumbers"
@@ -311,13 +424,14 @@ onBeforeUnmount(() => {
         wrap="off"
         spellcheck="false"
       ></textarea>
+      <!-- hidden mirror for measuring line width -->
+      <pre ref="mirrorRef" class="measure-mirror" aria-hidden="true"></pre>
     </div>
 
     <!--
       Parents can listen like:
       <PythonInputContext @text-change="onTextChange" />
     -->
-    <PythonErrorPreview v-model:error="compileError" />
   </div>
 </template>
 
@@ -350,6 +464,8 @@ onBeforeUnmount(() => {
   align-items: stretch;
   position: relative; /* for absolute overlay positioning */
   overflow: hidden; /* clip overlay strictly to the scroll viewport */
+  width: 500px;
+  height: 500px;
 }
 
 .line-gutter {
@@ -364,9 +480,15 @@ onBeforeUnmount(() => {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 14px;
   line-height: 1.4;
-  height: 160px;
+  height: 100%;
   box-sizing: border-box; /* match textarea sizing model so heights align */
-  overflow: auto; /* allow programmatic scroll and show scrollbar if needed */
+  overflow: auto; /* keep scroll mechanics for sync */
+  scrollbar-width: none; /* Firefox: hide scrollbar */
+  -ms-overflow-style: none; /* IE/Edge (legacy): hide scrollbar */
+}
+.line-gutter::-webkit-scrollbar {
+  width: 0;
+  height: 0; /* Chrome/Safari/Opera: hide scrollbar */
 }
 .gutter-pre { margin: 0; }
 .gutter-line {
@@ -398,12 +520,34 @@ onBeforeUnmount(() => {
   z-index: 10; /* ensure above gutter and textarea */
 }
 
+/* error icon positioned over the editor, clipped by wrapper */
+.error-icon {
+  position: absolute;
+  width: auto;
+  z-index: 12;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* hidden mirror used to measure line text width accurately */
+.measure-mirror {
+  position: absolute;
+  visibility: hidden;
+  white-space: pre;
+  top: -10000px;
+  left: -10000px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 14px;
+  line-height: 1.4;
+  tab-size: 8;
+}
+
 .text-input {
   padding: 0.5rem 0.75rem;
   border: 1px solid #ccc;
   border-radius: 6px;
   outline: none;
-  height: 160px; /* fixed window height */
+  height: 100%; /* fill editor-wrapper height */
   overflow-y: auto; /* show internal scrollbar when content exceeds height */
   overflow-x: auto; /* allow horizontal scroll when wrap is off */
   resize: none; /* keep window fixed; prevent user resizing */
@@ -411,6 +555,7 @@ onBeforeUnmount(() => {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 14px;
   line-height: 1.4;
+  tab-size: 8;
 }
 
 /* When used as code area next to gutter, adjust borders to merge nicely */
@@ -425,4 +570,18 @@ onBeforeUnmount(() => {
   border-color: #42b883;
   box-shadow: 0 0 0 3px rgba(66, 184, 131, 0.15);
 }
+.error-tooltip {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none; /* ensure hover tracking stays on the icon */
+}
+.tooltip-inner {
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+  max-width: 380px;
+  padding: 6px;
+}
+
 </style>
