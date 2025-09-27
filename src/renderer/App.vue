@@ -3,6 +3,7 @@ import viteLogo from './assets/vite.svg';
 import vueLogo from './assets/vue.svg';
 
 import HelloWorld from './components/HelloWorld.vue'
+import ThreeSpinningCube from "./components/ThreeSpinningCube.vue";
 
 window.electronAPI.sendMessage('Hello from App.vue!');
 </script>
@@ -16,7 +17,8 @@ window.electronAPI.sendMessage('Hello from App.vue!');
       <img :src="vueLogo" class="logo vue" alt="Vue logo" />
     </a>
   </div>
-  <HelloWorld msg="Vite + Vue" />
+<!--  <HelloWorld msg="Vite + Vue" />-->
+  <ThreeSpinningCube></ThreeSpinningCube>
 </template>
 
 <style scoped>

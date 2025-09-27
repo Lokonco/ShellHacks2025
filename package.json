@@ -25,6 +25,8 @@
     "vite": "^4.5.0"
   },
   "dependencies": {
+    "@types/three": "^0.180.0",
+    "three": "^0.180.0",
     "vue": "^3.3.8"
   }
 }
