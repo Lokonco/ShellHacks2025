@@ -7,6 +7,29 @@ import {PythonError} from "pyodide/ffi";
 import PythonErrorPreview from './console/PythonErrorPreview.vue'
 import pythonConsole from '../../stores/pythonConsole'
 
+// Expose a JS function callable from Pyodide: from js import send_points
+function installPyToJsSketchBridge(py: any) {
+  const g: any = globalThis as any
+  if (g.send_points) return
+  g.send_points = (pyPoints: any) => {
+    try {
+      const points = typeof pyPoints?.toJs === 'function'
+        ? pyPoints.toJs({ dict_converter: Object.fromEntries })
+        : pyPoints
+      const norm = Array.from(points || []).map((p: any) => ({
+        x: Number(p?.x ?? p?.get?.('x') ?? 0),
+        y: Number(p?.y ?? p?.get?.('y') ?? 0),
+        z: Number(p?.z ?? p?.get?.('z') ?? 0),
+      }))
+      window.dispatchEvent(new CustomEvent('sketch:points', { detail: norm }))
+    } finally {
+      if (pyPoints && typeof pyPoints.destroy === 'function') {
+        try { pyPoints.destroy() } catch {}
+      }
+    }
+  }
+}
+
 // Allow parent to pass attrs (class/style) to the editor wrapper
 // so width/height can be controlled externally
 defineOptions({ inheritAttrs: false })
@@ -63,6 +86,8 @@ async function updatePyScript(code: string) {
   pyodide.onReady(
       async (py: PyodideInterface) => {
         try {
+          // Install our JS bridge once to receive points from Python
+          installPyToJsSketchBridge(py)
           // Use async execution to avoid blocking the UI
           // @ts-ignore runPythonAsync exists in Pyodide 0.28+
           if (typeof (py as any).runPythonAsync === 'function') {
