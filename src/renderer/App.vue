@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import viteLogo from './assets/vite.svg';
 import vueLogo from './assets/vue.svg';
 
-import { ref } from 'vue';
 import HelloWorld from './components/HelloWorld.vue'
 import ThreeSpinningCube from "./components/ThreeSpinningCube.vue";
+import PythonViewContext from "./components/python/PythonViewContext.vue";
+import SettingsWindow from "./components/settings/SettingsWindow.vue";
 import SketchPreview from "./components/SketchPreview.vue";
 import SketchPreviewReload from "./components/SketchPreviewReload.vue";
 
@@ -15,17 +17,30 @@ const sketchKey = ref(0);
 function reloadSketchPreviews() {
   sketchKey.value++;
 }
+// Global-ish settings driving child components
+const preventDuringLive = ref(false)
+
+function onSettingsChange(payload: any) {
+  if (payload && payload.all && typeof payload.all.shouldAutocompilePython === 'boolean') {
+    preventDuringLive.value = payload.all.shouldAutocompilePython
+  }
+}
+
+function onTextChange(value: string) {
+  console.log(value);
+}
+
 </script>
 
 <template>
-  <div>
-    <a href="https://vitejs.dev" target="_blank">
-      <img :src="viteLogo" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://vuejs.org/" target="_blank">
-      <img :src="vueLogo" class="logo vue" alt="Vue logo" />
-    </a>
-  </div>
+<!--  <div>-->
+<!--    <a href="https://vitejs.dev" target="_blank">-->
+<!--      <img :src="viteLogo" class="logo" alt="Vite logo" />-->
+<!--    </a>-->
+<!--    <a href="https://vuejs.org/" target="_blank">-->
+<!--      <img :src="vueLogo" class="logo vue" alt="Vue logo" />-->
+<!--    </a>-->
+<!--  </div>-->
 <!--  <HelloWorld msg="Vite + Vue" />-->
   <!-- Test case of using a live preview with hardcoded points for shapes -->
   <!-- Developer reload button for SketchPreview components -->
@@ -44,6 +59,8 @@ function reloadSketchPreviews() {
     :position="{ x: -100, y: 0 }"
   ></SketchPreview>
   <ThreeSpinningCube></ThreeSpinningCube>
+  <SettingsWindow @settings-change="onSettingsChange" />
+  <PythonViewContext :prevent-automatic-code-update="preventDuringLive" @text-change="onTextChange" />
 </template>
 
 <style scoped>
