@@ -18,7 +18,7 @@ function reloadSketchPreviews() {
   sketchKey.value++;
 }
 // Global-ish settings driving child components
-const preventDuringLive = ref(true)
+const preventDuringLive = ref(false)
 
 function onSettingsChange(payload: any) {
   if (payload && payload.all && typeof payload.all.shouldAutocompilePython === 'boolean') {

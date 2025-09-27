@@ -96,7 +96,7 @@ const emit = defineEmits<{
 
 // Local, reactive settings state
 const settings = reactive<Settings>({
-  shouldAutocompilePython: false,
+  shouldAutocompilePython: true,
 })
 
 // Button boolean to control automatic emission like a signal
