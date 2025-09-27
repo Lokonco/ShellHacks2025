@@ -77,8 +77,11 @@ function onSettingsChange(payload: any) {
   ></SketchPreview>
   <ThreeSpinningCube></ThreeSpinningCube>
   <SettingsWindow @settings-change="onSettingsChange" />
-  <PythonInputContext :prevent-automatic-code-update="preventDuringLive"/>
-  <PythonConsoleOutput />
+  <PythonInputContext
+      :prevent-automatic-code-update="preventDuringLive"
+      style="height: 400px; width: 100%;"
+  />
+  <PythonConsoleOutput/>
 </template>
 
 <style scoped>
