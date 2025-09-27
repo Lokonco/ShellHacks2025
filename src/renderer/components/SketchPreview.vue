@@ -3,11 +3,22 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, defineProps, nextTick } from 'vue';
+import { ref, onMounted, onBeforeUnmount, defineProps, nextTick, watch } from 'vue';
 import * as THREE from 'three';
 
 // Reference to the container div for the Three.js canvas
 const container = ref(null);
+
+// Integrate pannable composable for drag tracking and camera panning
+import { usePannable } from './usePannable';
+import { useZoomable } from './useZoomable';
+// panOffset is a ref({x, y}) that tracks the total pan distance in screen pixels
+const { panOffset } = usePannable(container);
+
+// --- Zooming logic ---
+// 'inverted' controls scroll direction for zoom (can be made a prop or setting later)
+const inverted = ref(false); // Set to true to invert scroll direction
+const { zoomLevel } = useZoomable(container, inverted);
 // Three.js objects are instance-scoped so each component is independent
 let renderer = null;
 let camera = null;
@@ -74,6 +85,7 @@ onMounted(() => {
     scene.background = null;
 
     // Camera always views logical area (0,0) to (width,height)
+    // We'll apply panning by shifting the camera's view bounds by panOffset
     camera = new THREE.OrthographicCamera(0, width, height, 0, 1, 1000);
     camera.position.z = 5;
 
@@ -91,7 +103,7 @@ onMounted(() => {
     renderer.domElement.style.display = 'block';
     container.value.appendChild(renderer.domElement);
 
-    // Draw the shape(s) based on current props
+    // --- Draw the shape(s) based on current props and pan/zoom ---
     function drawScene() {
       // Remove previous objects
       while (scene.children.length > 0) scene.remove(scene.children[0]);
@@ -136,6 +148,34 @@ onMounted(() => {
       renderer.render(scene, camera);
     }
 
+    // --- Panning logic: update camera bounds and redraw on pan ---
+    // This watcher will update the camera's view when panOffset changes
+    watch(panOffset, (val) => {
+      // Scale pan by 1/zoomLevel so panning feels consistent at all zooms
+      const z = camera.zoom || 1;
+      camera.left = 0 - val.x / z;
+      camera.right = width - val.x / z;
+      camera.top = height + val.y / z;
+      camera.bottom = 0 + val.y / z;
+      camera.updateProjectionMatrix();
+      drawScene();
+    }, { deep: true });
+
+    // --- Zoom logic: update camera zoom and redraw on zoomLevel change ---
+    watch(zoomLevel, (z) => {
+      // Clamp zoom to a reasonable range
+      const clamped = Math.max(0.2, Math.min(5, z));
+      camera.zoom = clamped;
+      // Also update camera bounds to keep pan consistent with new zoom
+      const val = panOffset.value;
+      camera.left = 0 - val.x / clamped;
+      camera.right = width - val.x / clamped;
+      camera.top = height + val.y / clamped;
+      camera.bottom = 0 + val.y / clamped;
+      camera.updateProjectionMatrix();
+      drawScene();
+    });
+
     // Initial draw
     drawScene();
 
@@ -150,13 +190,15 @@ onMounted(() => {
         }
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(newWidth, newHeight);
-        // Update camera to match new logical area
-        camera.left = 0;
-        camera.right = newWidth;
-        camera.top = newHeight;
-        camera.bottom = 0;
-        camera.updateProjectionMatrix();
-        drawScene();
+        // Update camera to match new logical area, keeping pan and zoom
+  // Keep pan and zoom consistent on resize
+  const z = camera.zoom || 1;
+  camera.left = 0 - panOffset.value.x / z;
+  camera.right = newWidth - panOffset.value.x / z;
+  camera.top = newHeight + panOffset.value.y / z;
+  camera.bottom = 0 + panOffset.value.y / z;
+  camera.updateProjectionMatrix();
+  drawScene();
       });
       resizeObserver.observe(container.value);
     }
@@ -180,7 +222,11 @@ onMounted(() => {
 div {
   width: 100%;
   height: 100%;
-  background: #f0f0f0; /* Light gray background */
+  /* Light gray background with a 20px grid */
+  background-color: #f0f0f0;
+  background-image:
+    repeating-linear-gradient(to right, #e0e0e0 0, #e0e0e0 1px, transparent 1px, transparent 20px),
+    repeating-linear-gradient(to bottom, #e0e0e0 0, #e0e0e0 1px, transparent 1px, transparent 20px);
   border: 2px solid #bbb; /* Subtle border */
   border-radius: 8px;
   box-sizing: border-box;

@@ -60,6 +60,21 @@ function onSettingsChange(payload: any) {
     :position="{ x: 100, y: 0 }"
     :canvas_dimensions="{ width: 180, height: 100 }"
   ></SketchPreview>
+  <!-- Render a hexagon shape -->
+  <SketchPreview
+    :key="'hexagon-' + sketchKey"
+    :points="[
+      { x: 50, y: 0, z: 0 },
+      { x: 100, y: 25, z: 0 },
+      { x: 100, y: 75, z: 0 },
+      { x: 50, y: 100, z: 0 },
+      { x: 0, y: 75, z: 0 },
+      { x: 0, y: 25, z: 0 }
+    ]"
+    :filled="false"
+    :position="{ x: 30, y: 0 }"
+    :canvas_dimensions="{ width: 480, height: 400 }"
+  ></SketchPreview>
   <ThreeSpinningCube></ThreeSpinningCube>
   <SettingsWindow @settings-change="onSettingsChange" />
   <PythonInputContext :prevent-automatic-code-update="preventDuringLive"/>
