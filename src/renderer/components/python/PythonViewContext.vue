@@ -1,9 +1,10 @@
 <!-- TODO: have a delay setting for text changes to prevent spamming the Python process -->
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 
 // Local state for the text box
 const text = ref('')
+const pyScriptElement = ref<HTMLElement | null>(null)
 
 // Props: parent controls whether to prevent view context updates during live text changes
 const props = defineProps<{
@@ -25,6 +26,16 @@ const emit = defineEmits<{
 function onTextChange(value: string) {
   // Centralize any side-effects or processing here
   console.log(value)
+  updatePyScript(value)
+}
+
+function updatePyScript(value: string) {
+  if (pyScriptElement.value) {
+    document.body.removeChild(pyScriptElement.value)
+  }
+  pyScriptElement.value = document.createElement('py-script')
+  document.body.appendChild(pyScriptElement.value)
+  pyScriptElement.value.textContent = value
 }
 
 // Watch for any change to `text`. If prevention is active, hold off emitting
