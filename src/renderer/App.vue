@@ -4,21 +4,30 @@ import vueLogo from './assets/vue.svg';
 
 import HelloWorld from './components/HelloWorld.vue'
 import ThreeSpinningCube from "./components/ThreeSpinningCube.vue";
+import PythonViewContext from "./components/python/PythonViewContext.vue";
+import SettingsWindow from "./components/settings/SettingsWindow.vue";
 
 window.electronAPI.sendMessage('Hello from App.vue!');
+
+
+function onTextChange(value: string) {
+  console.log(value);
+}
+
 </script>
 
 <template>
-  <div>
-    <a href="https://vitejs.dev" target="_blank">
-      <img :src="viteLogo" class="logo" alt="Vite logo" />
-    </a>
-    <a href="https://vuejs.org/" target="_blank">
-      <img :src="vueLogo" class="logo vue" alt="Vue logo" />
-    </a>
-  </div>
+<!--  <div>-->
+<!--    <a href="https://vitejs.dev" target="_blank">-->
+<!--      <img :src="viteLogo" class="logo" alt="Vite logo" />-->
+<!--    </a>-->
+<!--    <a href="https://vuejs.org/" target="_blank">-->
+<!--      <img :src="vueLogo" class="logo vue" alt="Vue logo" />-->
+<!--    </a>-->
+<!--  </div>-->
 <!--  <HelloWorld msg="Vite + Vue" />-->
-  <ThreeSpinningCube></ThreeSpinningCube>
+  <SettingsWindow></SettingsWindow>
+  <PythonViewContext @text-change="onTextChange" />
 </template>
 
 <style scoped>
