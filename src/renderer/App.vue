@@ -8,9 +8,15 @@ import ThreeSpinningCube from "./components/ThreeSpinningCube.vue";
 import PythonViewContext from "./components/python/PythonViewContext.vue";
 import SettingsWindow from "./components/settings/SettingsWindow.vue";
 import SketchPreview from "./components/SketchPreview.vue";
+import SketchPreviewReload from "./components/SketchPreviewReload.vue";
 
 window.electronAPI.sendMessage('Hello from App.vue!');
 
+// Key to force remount SketchPreview components
+const sketchKey = ref(0);
+function reloadSketchPreviews() {
+  sketchKey.value++;
+}
 // Global-ish settings driving child components
 const preventDuringLive = ref(false)
 
@@ -36,9 +42,25 @@ function onTextChange(value: string) {
 <!--    </a>-->
 <!--  </div>-->
 <!--  <HelloWorld msg="Vite + Vue" />-->
+  <!-- Test case of using a live preview with hardcoded points for shapes -->
+  <!-- Developer reload button for SketchPreview components -->
+  <SketchPreviewReload @reload="reloadSketchPreviews" />
+  <!-- Render a default shape -->
+  <SketchPreview :key="'default-' + sketchKey"></SketchPreview>
+  <!-- Render a triangle shape -->
+  <SketchPreview
+    :key="'triangle-' + sketchKey"
+    :points="[
+      { x: 50, y: 0, z: 0 },
+      { x: 100, y: 100, z: 0 },
+      { x: 0, y: 100, z: 0 }
+    ]"
+    :filled="true"
+    :position="{ x: -100, y: 0 }"
+  ></SketchPreview>
+  <ThreeSpinningCube></ThreeSpinningCube>
   <SettingsWindow @settings-change="onSettingsChange" />
   <PythonViewContext :prevent-automatic-code-update="preventDuringLive" @text-change="onTextChange" />
-  <SketchPreview></SketchPreview>
 </template>
 
 <style scoped>
