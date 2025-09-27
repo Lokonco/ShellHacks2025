@@ -86,7 +86,7 @@ onMounted(() => {
     let height = props.canvas_dimensions?.height || (container.value ? container.value.clientHeight : window.innerHeight);
     if (!width || !height) {
       width = window.innerWidth / 2;
-      height = window.innerHeight;
+      height = window.innerHeight / 10;
     }
 
     // Create Three.js scene and camera
