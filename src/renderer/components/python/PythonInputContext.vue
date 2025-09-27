@@ -20,6 +20,7 @@ const pyScriptElement = ref<HTMLElement | null>(null)
 // Line numbers gutter support
 const textAreaRef = ref<HTMLTextAreaElement | null>(null)
 const gutterRef = ref<HTMLDivElement | null>(null)
+const editorWrapperRef = ref<HTMLDivElement | null>(null)
 const lineNumbers = computed(() => {
   const lines = (text.value ? text.value.split('\n').length : 1) || 1
   return Array.from({ length: lines }, (_, i) => i + 1)
@@ -149,6 +150,34 @@ const overlayTop = computed(() => {
   return (gutterRef.value ? gutterRef.value.offsetTop : 0) + borderTopPx.value + paddingTopPx.value - scrollTopRef.value + lineIndex * lineHeightPx.value
 })
 
+const wrapperClientHeight = computed(() => editorWrapperRef.value ? (editorWrapperRef.value.clientHeight || 0) : 0)
+
+const overlayTopVisual = computed(() => {
+  const ch = wrapperClientHeight.value
+  if (ch <= 0) return 0
+  const top = overlayTop.value
+  const visibleTop = Math.max(0, Math.min(ch, top))
+  const bottom = top + lineHeightPx.value
+  const visibleBottom = Math.max(0, Math.min(ch, bottom))
+  // if no intersection, keep any value; visibility is controlled elsewhere
+  return visibleBottom > visibleTop ? visibleTop : 0
+})
+
+const overlayHeightVisual = computed(() => {
+  const ch = wrapperClientHeight.value
+  if (ch <= 0) return 0
+  const top = overlayTop.value
+  const bottom = top + lineHeightPx.value
+  const visibleTop = Math.max(0, Math.min(ch, top))
+  const visibleBottom = Math.max(0, Math.min(ch, bottom))
+  return Math.max(0, visibleBottom - visibleTop)
+})
+
+const overlayVisible = computed(() => {
+  if (!compileError.value || !overlayReady.value) return false
+  return overlayHeightVisual.value > 0
+})
+
 function measureOverlay() {
   const ta = textAreaRef.value
   const gut = gutterRef.value
@@ -251,12 +280,12 @@ onBeforeUnmount(() => {
   <div class="python-view-context">
     <label class="input-label" for="python-text-input">Enter text:</label>
 
-    <div class="editor-wrapper">
+    <div class="editor-wrapper" ref="editorWrapperRef">
       <!-- overlay highlight spanning gutter and textarea -->
       <div
-        v-if="compileError && overlayReady"
+        v-if="compileError && overlayReady && overlayVisible"
         class="line-overlay"
-        :style="{ top: overlayTop + 'px', height: lineHeightPx + 'px' }"
+        :style="{ top: overlayTopVisual + 'px', height: overlayHeightVisual + 'px' }"
         aria-hidden="true"
       />
       <div class="line-gutter" ref="gutterRef" aria-hidden="true">
@@ -273,6 +302,7 @@ onBeforeUnmount(() => {
         ref="textAreaRef"
         v-model="text"
         placeholder="Type here..."
+        wrap="off"
         spellcheck="false"
       ></textarea>
     </div>
@@ -316,6 +346,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: stretch;
   position: relative; /* for absolute overlay positioning */
+  overflow: hidden; /* clip overlay strictly to the scroll viewport */
 }
 
 .line-gutter {
@@ -328,6 +359,7 @@ onBeforeUnmount(() => {
   min-width: 2.25rem; /* enough for 2-3 digits */
   text-align: right;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 14px;
   line-height: 1.4;
   height: 160px;
   box-sizing: border-box; /* match textarea sizing model so heights align */
@@ -370,9 +402,11 @@ onBeforeUnmount(() => {
   outline: none;
   height: 160px; /* fixed window height */
   overflow-y: auto; /* show internal scrollbar when content exceeds height */
+  overflow-x: auto; /* allow horizontal scroll when wrap is off */
   resize: none; /* keep window fixed; prevent user resizing */
   box-sizing: border-box; /* keep padding/border inside fixed height */
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 14px;
   line-height: 1.4;
 }
 
