@@ -2,6 +2,8 @@
 import { ref } from 'vue'
 import viteLogo from './assets/vite.svg';
 import vueLogo from './assets/vue.svg';
+import pyodide from './pyodide-loader'
+
 
 import HelloWorld from './components/HelloWorld.vue'
 import ThreeSpinningCube from "./components/ThreeSpinningCube.vue";
@@ -9,6 +11,8 @@ import PythonViewContext from "./components/python/PythonViewContext.vue";
 import SettingsWindow from "./components/settings/SettingsWindow.vue";
 import SketchPreview from "./components/SketchPreview.vue";
 import SketchPreviewReload from "./components/SketchPreviewReload.vue";
+
+pyodide.init()
 
 window.electronAPI.sendMessage('Hello from App.vue!');
 

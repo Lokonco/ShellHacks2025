@@ -1,6 +1,8 @@
 <!-- TODO: have a delay setting for text changes to prevent spamming the Python process -->
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import pyodide from '../../pyodide-loader'
+import {PyodideInterface} from "pyodide";
 
 // Local state for the text box
 const text = ref('')
@@ -22,20 +24,27 @@ const emit = defineEmits<{
   (e: 'text-change', value: string): void
 }>()
 
-// Local handler for text change logic (moved from App.vue)
+// Local handler for text change logic
 function onTextChange(value: string) {
-  // Centralize any side-effects or processing here
   console.log(value)
   updatePyScript(value)
 }
 
-function updatePyScript(value: string) {
-  if (pyScriptElement.value) {
-    document.body.removeChild(pyScriptElement.value)
-  }
-  pyScriptElement.value = document.createElement('py-script')
-  document.body.appendChild(pyScriptElement.value)
-  pyScriptElement.value.textContent = value
+
+async function updatePyScript(value: string) {
+  console.log("updated")
+  pyodide.onReady(
+      async (pyodide: PyodideInterface) => {
+        await pyodide.runPython("print(\"REEAW\")")
+      }
+  )
+
+  // if (pyScriptElement.value) {
+  //   document.body.removeChild(pyScriptElement.value)
+  // }
+  // pyScriptElement.value = document.createElement('py-script')
+  // document.body.appendChild(pyScriptElement.value)
+  // pyScriptElement.value.textContent = value
 }
 
 // Watch for any change to `text`. If prevention is active, hold off emitting
@@ -63,9 +72,39 @@ watch(
     }
   }
 )
+
+// Dynamically load the Python connector script in Vue context
+const mpyScriptEl = ref<HTMLScriptElement | null>(null)
+const createdByThis = ref(false)
+
+onMounted(() => {
+  const marker = 'python-connector'
+  const existing = document.querySelector(`script[data-mpy-id="${marker}"]`) as HTMLScriptElement | null
+  if (existing) {
+    mpyScriptEl.value = existing
+    createdByThis.value = false
+    return
+  }
+  const s = document.createElement('script')
+  s.type = 'mpy'
+  s.setAttribute('data-mpy-id', marker)
+  s.src = new URL('../../assets/py/PythonConnector.py', import.meta.url).toString()
+  document.head.appendChild(s)
+  mpyScriptEl.value = s
+  createdByThis.value = true
+})
+
+onBeforeUnmount(() => {
+  if (createdByThis.value && mpyScriptEl.value && mpyScriptEl.value.parentNode) {
+    mpyScriptEl.value.parentNode.removeChild(mpyScriptEl.value)
+  }
+})
 </script>
 
 <template>
+
+  <button type="button" id="my_button">run Python</button>
+
   <div class="python-view-context">
     <label class="input-label" for="python-text-input">Enter text:</label>
     <textarea
