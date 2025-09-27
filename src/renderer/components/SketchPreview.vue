@@ -38,28 +38,28 @@ const containerStyle = computed(() => {
 });
 
 // Props:
-// - points: Array of {x, y, z} objects defining the polygon's vertices (in order)
-// - filled: Boolean, true for filled shape, false for outline only
-// - position: Object with x and y properties to offset the shape's position (default is { x: 0, y: 0 })
+// - shapes: Array of shape objects, each with:
+//   - points: Array<{x, y, z}>
+//   - filled: Boolean (filled or outline)
+//   - color: (optional) {r,g,b} (0-255)
+//   - position: (optional) {x, y}
 // - canvas_dimensions: Optional { width, height } to fix the canvas size in px (prevents resizing on reload)
 const props = defineProps({
-  points: {
+  shapes: {
     type: Array,
     default: () => [
-      { x: 0, y: 0, z: 0 },      // Bottom-left
-      { x: 100, y: 0, z: 0 },    // Bottom-right
-      { x: 100, y: 100, z: 0 },  // Top-right
-      { x: 0, y: 100, z: 0 },    // Top-left
+      {
+        points: [
+          { x: 0, y: 0, z: 0 },
+          { x: 100, y: 0, z: 0 },
+          { x: 100, y: 100, z: 0 },
+          { x: 0, y: 100, z: 0 },
+        ],
+        filled: false,
+        color: { r: 255, g: 0, b: 0 },
+        position: { x: 0, y: 0 }
+      }
     ]
-  },
-  filled: {
-    type: Boolean,
-    default: false
-  },
-  // New: position offset for the shape (applied to all points)
-  position: {
-    type: Object,
-    default: () => ({ x: 0, y: 0 })
   },
   // New: fixed canvas size (optional)
   canvas_dimensions: {
@@ -67,6 +67,15 @@ const props = defineProps({
     default: null // { width, height } or null for auto
   }
 });
+
+// Internal shapes object for future export (e.g., STL)
+const shapes = ref(props.shapes.map(s => ({ ...s }))); // Deep copy for local use
+
+// Helper: Convert {r,g,b} to THREE.Color
+function rgbToThreeColor(rgb) {
+  if (!rgb || typeof rgb !== 'object') return new THREE.Color(1, 0, 0); // default red
+  return new THREE.Color(rgb.r / 255, rgb.g / 255, rgb.b / 255);
+}
 
 // Main Three.js setup and rendering logic
 onMounted(() => {
@@ -77,7 +86,7 @@ onMounted(() => {
     let height = props.canvas_dimensions?.height || (container.value ? container.value.clientHeight : window.innerHeight);
     if (!width || !height) {
       width = window.innerWidth / 2;
-      height = window.innerHeight;
+      height = window.innerHeight / 10;
     }
 
     // Create Three.js scene and camera
@@ -108,42 +117,44 @@ onMounted(() => {
       // Remove previous objects
       while (scene.children.length > 0) scene.remove(scene.children[0]);
 
-      // Offset all points by the position prop
-      const offsetX = props.position.x || 0;
-      const offsetY = props.position.y || 0;
-      const pts = props.points.map(p => ({
-        x: p.x + offsetX,
-        y: p.y + offsetY,
-        z: p.z ?? 0
-      }));
-
-      if (props.filled) {
-        // Filled polygon
-        const shape = new THREE.Shape();
-        if (pts.length > 0) {
-          shape.moveTo(pts[0].x, pts[0].y);
-          for (let i = 1; i < pts.length; i++) {
-            shape.lineTo(pts[i].x, pts[i].y);
+      // Loop through all shapes and render each
+      for (const shapeObj of shapes.value) {
+        const offsetX = shapeObj.position?.x || 0;
+        const offsetY = shapeObj.position?.y || 0;
+        const pts = shapeObj.points.map(p => ({
+          x: p.x + offsetX,
+          y: p.y + offsetY,
+          z: p.z ?? 0
+        }));
+        const color = rgbToThreeColor(shapeObj.color);
+        if (shapeObj.filled) {
+          // Filled polygon
+          const shape = new THREE.Shape();
+          if (pts.length > 0) {
+            shape.moveTo(pts[0].x, pts[0].y);
+            for (let i = 1; i < pts.length; i++) {
+              shape.lineTo(pts[i].x, pts[i].y);
+            }
+            shape.lineTo(pts[0].x, pts[0].y); // Close the shape
           }
-          shape.lineTo(pts[0].x, pts[0].y); // Close the shape
+          const geometry = new THREE.ShapeGeometry(shape);
+          const material = new THREE.MeshBasicMaterial({
+            color,
+            wireframe: false
+          });
+          const mesh = new THREE.Mesh(geometry, material);
+          scene.add(mesh);
+        } else {
+          // Outline only
+          const outlinePoints = pts.map(p => new THREE.Vector3(p.x, p.y, p.z));
+          if (outlinePoints.length > 0 && !outlinePoints[0].equals(outlinePoints[outlinePoints.length - 1])) {
+            outlinePoints.push(outlinePoints[0].clone());
+          }
+          const geometry = new THREE.BufferGeometry().setFromPoints(outlinePoints);
+          const material = new THREE.LineBasicMaterial({ color });
+          const line = new THREE.LineLoop(geometry, material);
+          scene.add(line);
         }
-        const geometry = new THREE.ShapeGeometry(shape);
-        const material = new THREE.MeshBasicMaterial({
-          color: 0xff0000,
-          wireframe: false
-        });
-        const mesh = new THREE.Mesh(geometry, material);
-        scene.add(mesh);
-      } else {
-        // Outline only
-        const outlinePoints = pts.map(p => new THREE.Vector3(p.x, p.y, p.z));
-        if (outlinePoints.length > 0 && !outlinePoints[0].equals(outlinePoints[outlinePoints.length - 1])) {
-          outlinePoints.push(outlinePoints[0].clone());
-        }
-        const geometry = new THREE.BufferGeometry().setFromPoints(outlinePoints);
-        const material = new THREE.LineBasicMaterial({ color: 0xff0000 });
-        const line = new THREE.LineLoop(geometry, material);
-        scene.add(line);
       }
       renderer.render(scene, camera);
     }
