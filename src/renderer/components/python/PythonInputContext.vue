@@ -7,6 +7,10 @@ import {PythonError} from "pyodide/ffi";
 import PythonErrorPreview from './console/PythonErrorPreview.vue'
 import pythonConsole from '../../stores/pythonConsole'
 
+// Allow parent to pass attrs (class/style) to the editor wrapper
+// so width/height can be controlled externally
+defineOptions({ inheritAttrs: false })
+
 const redAlertUrl = new URL('../../assets/red-alert-icon.svg', import.meta.url).toString()
 
 // Error info for Approach B (runtime try/catch)
@@ -376,7 +380,7 @@ function onIconLeave() {
   <div class="python-view-context">
     <label class="input-label" for="python-text-input">Enter text:</label>
 
-    <div class="editor-wrapper" ref="editorWrapperRef">
+    <div class="editor-wrapper" ref="editorWrapperRef" v-bind="$attrs">
       <!-- overlay highlight spanning gutter and textarea -->
       <div
         v-if="compileError && overlayReady && overlayVisible"
@@ -451,7 +455,7 @@ function onIconLeave() {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  max-width: 520px;
+  width: 100%;
 }
 
 .input-label {
@@ -464,8 +468,7 @@ function onIconLeave() {
   align-items: stretch;
   position: relative; /* for absolute overlay positioning */
   overflow: hidden; /* clip overlay strictly to the scroll viewport */
-  width: 500px;
-  height: 500px;
+  /* Size is now controlled externally via attrs (inline style or parent CSS). */
 }
 
 .line-gutter {
