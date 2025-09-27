@@ -25,10 +25,19 @@ app.whenReady().then(() => {
   createWindow();
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    // Allow PyScript assets to be loaded in the Content-Security-Policy
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' https://pyscript.net https://cdn.jsdelivr.net" + " 'wasm-unsafe-eval'",
+      "style-src 'self' " + "'unsafe-inline' " + "https://pyscript.net",
+      "connect-src 'self' https://pyscript.net https://cdn.jsdelivr.net" + " ws:",
+      "worker-src 'self' blob:"
+    ].join('; ');
+
     callback({
       responseHeaders: {
         ...details.responseHeaders,
-        'Content-Security-Policy': ['script-src \'self\'']
+        'Content-Security-Policy': [csp]
       }
     })
   })

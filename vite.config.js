@@ -17,7 +17,14 @@ const config = defineConfig({
         outDir: Path.join(__dirname, 'build', 'renderer'),
         emptyOutDir: true,
     },
-    plugins: [vuePlugin()],
+    plugins: [
+        vuePlugin({
+            template: {
+                compilerOptions: {
+                    isCustomElement: (tag) => tag.startsWith('py-'),                },
+            },
+        }),
+    ],
 });
 
 module.exports = config;
