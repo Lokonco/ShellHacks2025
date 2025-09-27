@@ -17,7 +17,9 @@ export default {
     async init() {
         // only initiate once
         if (!this.instance) {
-            this.instance = await loadPyodide();
+            this.instance = await loadPyodide({
+                indexURL: "https://cdn.jsdelivr.net/pyodide/v0.28.3/full"
+            });
             // after initiating success, execute the callback queue
             this.readyCallbacks.forEach((func) => {
                 func(this.instance!);
