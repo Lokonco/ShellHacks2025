@@ -5,6 +5,7 @@ import pyodide from '../../pyodide-loader'
 import {PyodideInterface} from "pyodide";
 import {PythonError} from "pyodide/ffi";
 import PythonErrorPreview from './console/PythonErrorPreview.vue'
+import pythonConsole from '../../stores/pythonConsole'
 
 // Error info for Approach B (runtime try/catch)
 const compileError = ref<null | {
@@ -50,7 +51,9 @@ function onTextChange(value: string) {
 }
 
 async function updatePyScript(code: string) {
-  console.log("updated")
+  // Reset console for a new compile/run
+  pythonConsole.reset()
+  pythonConsole.appendSystem('Running Python...\n')
   pyodide.onReady(
       async (py: PyodideInterface) => {
         try {
@@ -69,6 +72,8 @@ async function updatePyScript(code: string) {
           const errAny = err as any
           const msg = errAny?.message || String(e)
           const type = errAny?.type || errAny?.name || 'Error'
+          // Also surface to console output
+          pythonConsole.appendStderr((type ? type + ': ' : '') + msg + '\n')
           // Determine lineno as the earliest occurrence mentioned in the traceback/message
           let lineno: number | undefined
           const allLineMatches = Array.from((msg || '').matchAll(/line\s+(\d+)/ig))

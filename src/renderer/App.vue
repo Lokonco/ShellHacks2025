@@ -11,6 +11,7 @@ import PythonInputContext from "./components/python/PythonInputContext.vue";
 import SettingsWindow from "./components/settings/SettingsWindow.vue";
 import SketchPreview from "./components/SketchPreview.vue";
 import SketchPreviewReload from "./components/SketchPreviewReload.vue";
+import PythonConsoleOutput from './components/python/console/PythonConsoleOutput.vue'
 
 pyodide.init()
 
@@ -62,6 +63,7 @@ function onSettingsChange(payload: any) {
   <ThreeSpinningCube></ThreeSpinningCube>
   <SettingsWindow @settings-change="onSettingsChange" />
   <PythonInputContext :prevent-automatic-code-update="preventDuringLive" />
+  <PythonConsoleOutput />
 </template>
 
 <style scoped>
