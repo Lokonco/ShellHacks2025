@@ -18,16 +18,12 @@ function reloadSketchPreviews() {
   sketchKey.value++;
 }
 // Global-ish settings driving child components
-const preventDuringLive = ref(false)
+const preventDuringLive = ref(true)
 
 function onSettingsChange(payload: any) {
   if (payload && payload.all && typeof payload.all.shouldAutocompilePython === 'boolean') {
-    preventDuringLive.value = payload.all.shouldAutocompilePython
+    preventDuringLive.value = !payload.all.shouldAutocompilePython
   }
-}
-
-function onTextChange(value: string) {
-  console.log(value);
 }
 
 </script>
@@ -60,7 +56,7 @@ function onTextChange(value: string) {
   ></SketchPreview>
   <ThreeSpinningCube></ThreeSpinningCube>
   <SettingsWindow @settings-change="onSettingsChange" />
-  <PythonViewContext :prevent-automatic-code-update="preventDuringLive" @text-change="onTextChange" />
+  <PythonViewContext :prevent-automatic-code-update="preventDuringLive" />
 </template>
 
 <style scoped>

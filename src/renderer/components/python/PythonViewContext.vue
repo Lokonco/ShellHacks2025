@@ -16,10 +16,16 @@ const pendingSuppressed = ref<string | null>(null)
 // Keep track of the last value we actually emitted
 const lastEmitted = ref<string>('')
 
-// Emit an event whenever the text changes so parents can listen
+// Emit an event whenever the text changes so parents can listen (kept for compatibility)
 const emit = defineEmits<{
   (e: 'text-change', value: string): void
 }>()
+
+// Local handler for text change logic (moved from App.vue)
+function onTextChange(value: string) {
+  // Centralize any side-effects or processing here
+  console.log(value)
+}
 
 // Watch for any change to `text`. If prevention is active, hold off emitting
 watch(text, (newVal) => {
@@ -27,12 +33,13 @@ watch(text, (newVal) => {
     pendingSuppressed.value = newVal
     return
   }
-  // Emit immediately when not prevented
+  // Handle internally and emit immediately when not prevented
   lastEmitted.value = newVal
+  onTextChange(newVal)
   emit('text-change', newVal)
 })
 
-// When prevention turns off, emit the most recent suppressed text once
+// When prevention turns off, handle and emit the most recent suppressed text once
 watch(
   () => props.preventAutomaticCodeUpdate,
   (now, prev) => {
@@ -40,6 +47,7 @@ watch(
       const valueToEmit = pendingSuppressed.value
       pendingSuppressed.value = null
       lastEmitted.value = valueToEmit
+      onTextChange(valueToEmit)
       emit('text-change', valueToEmit)
     }
   }

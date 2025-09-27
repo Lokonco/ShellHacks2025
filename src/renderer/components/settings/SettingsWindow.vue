@@ -111,8 +111,6 @@ const ui = reactive<UIState>({
   applyCoolingDown: false,
 })
 
-const hasPending = computed(() => !ui.autoApply && ui.pending.length > 0)
-
 // Wire checkboxes via v-model and react with watches to avoid template TS casts
 watch(
   () => ui.autoApply,
@@ -143,11 +141,6 @@ function queueChange(change: SettingsChange) {
     if (idx >= 0) ui.pending.splice(idx, 1, change)
     else ui.pending.push(change)
   }
-}
-
-function onTogglePreventViewContext(value: boolean) {
-  settings.shouldAutocompilePython = value
-  queueChange({ name: 'shouldAutocompilePython', value })
 }
 
 function onToggleAutoApply(value: boolean) {
