@@ -6,6 +6,7 @@ import pyodide from './pyodide-loader'
 
 import PythonInputContext from "./components/python/PythonInputContext.vue";
 import SketchPreview from "./components/SketchPreview.vue";
+import SketchPreviewReload from "./components/SketchPreviewReload.vue";
 import PythonConsoleOutput from './components/python/console/PythonConsoleOutput.vue'
 import SettingsWindow from "./components/settings/SettingsWindow.vue";
 
