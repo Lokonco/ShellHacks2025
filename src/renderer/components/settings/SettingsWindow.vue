@@ -46,7 +46,7 @@ Types
 Recommended usage in App.vue (root‑only)
   <!-- template pseudo‑usage -->
   <SettingsWindow @settings-change="onSettingsChange" />
-  <PythonViewContext :prevent-during-live="preventDuringLive" />
+  <PythonInputContext :prevent-during-live="preventDuringLive" />
   <!-- Pass other settings to other children as needed -->
 
   // App‑side setup (script)

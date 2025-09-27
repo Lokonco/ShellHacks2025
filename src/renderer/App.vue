@@ -7,7 +7,7 @@ import pyodide from './pyodide-loader'
 
 import HelloWorld from './components/HelloWorld.vue'
 import ThreeSpinningCube from "./components/ThreeSpinningCube.vue";
-import PythonViewContext from "./components/python/PythonViewContext.vue";
+import PythonInputContext from "./components/python/PythonInputContext.vue";
 import SettingsWindow from "./components/settings/SettingsWindow.vue";
 import SketchPreview from "./components/SketchPreview.vue";
 import SketchPreviewReload from "./components/SketchPreviewReload.vue";
@@ -60,7 +60,7 @@ function onSettingsChange(payload: any) {
   ></SketchPreview>
   <ThreeSpinningCube></ThreeSpinningCube>
   <SettingsWindow @settings-change="onSettingsChange" />
-  <PythonViewContext :prevent-automatic-code-update="preventDuringLive" />
+  <PythonInputContext :prevent-automatic-code-update="preventDuringLive" />
 </template>
 
 <style scoped>
