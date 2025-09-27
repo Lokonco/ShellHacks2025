@@ -15,8 +15,8 @@ window.electronAPI.sendMessage('Hello from App.vue!');
 const preventDuringLive = ref(false)
 
 function onSettingsChange(payload: any) {
-  if (payload && payload.all && typeof payload.all.preventViewContextDuringLiveTextReload === 'boolean') {
-    preventDuringLive.value = payload.all.preventViewContextDuringLiveTextReload
+  if (payload && payload.all && typeof payload.all.shouldAutocompilePython === 'boolean') {
+    preventDuringLive.value = payload.all.shouldAutocompilePython
   }
 }
 

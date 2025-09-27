@@ -16,7 +16,7 @@ Key behaviors
   - When enabled, every change emits immediately via 'settings-change' with a change field and an all snapshot.
   - When disabled, changes are buffered until the user clicks Apply. On Apply, a single 'settings-change' fires with pending[] and the all snapshot.
 - Apply button UX: the button briefly greys out after clicking to indicate activity, but repeat clicks during that brief period won’t emit duplicate apply events.
-- Sample setting provided: preventViewContextDuringLiveTextReload, intended to let parents suppress heavy view updates during rapid text edits.
+- Sample setting provided: shouldAutocompilePython, controls whether Python code is auto-compiled during live edits.
 
 Emitted events
 - 'settings-change': (payload: SettingsChangePayload)
@@ -26,7 +26,7 @@ Emitted events
 
 Types
   type Settings = {
-    preventViewContextDuringLiveTextReload: boolean
+    shouldAutocompilePython: boolean
     // Add additional settings here as needed
   }
 
@@ -53,7 +53,7 @@ Recommended usage in App.vue (root‑only)
   // const preventDuringLive = ref(false)
   // function onSettingsChange(payload: SettingsChangePayload) {
   //   // Update central reactive state or a store from the snapshot
-  //   preventDuringLive.value = !!payload.all.preventViewContextDuringLiveTextReload
+  //   preventDuringLive.value = !!payload.all.shouldAutocompilePython
   // }
 
 Batch apply pattern (to avoid frequent re-renders while editing)
@@ -73,7 +73,7 @@ Notes
 */
 
 type Settings = {
-  preventViewContextDuringLiveTextReload: boolean
+  shouldAutocompilePython: boolean
 }
 
 type SettingsChange = {
@@ -96,7 +96,7 @@ const emit = defineEmits<{
 
 // Local, reactive settings state
 const settings = reactive<Settings>({
-  preventViewContextDuringLiveTextReload: false,
+  shouldAutocompilePython: false,
 })
 
 // Button boolean to control automatic emission like a signal
@@ -122,10 +122,10 @@ watch(
 )
 
 watch(
-  () => settings.preventViewContextDuringLiveTextReload,
+  () => settings.shouldAutocompilePython,
   (val) => {
     // Emit or queue the change when the setting toggles
-    queueChange({ name: 'preventViewContextDuringLiveTextReload', value: val })
+    queueChange({ name: 'shouldAutocompilePython', value: val })
   }
 )
 
@@ -146,8 +146,8 @@ function queueChange(change: SettingsChange) {
 }
 
 function onTogglePreventViewContext(value: boolean) {
-  settings.preventViewContextDuringLiveTextReload = value
-  queueChange({ name: 'preventViewContextDuringLiveTextReload', value })
+  settings.shouldAutocompilePython = value
+  queueChange({ name: 'shouldAutocompilePython', value })
 }
 
 function onToggleAutoApply(value: boolean) {
@@ -210,12 +210,12 @@ function onApply() {
       <label class="switch">
         <input
           type="checkbox"
-          v-model="settings.preventViewContextDuringLiveTextReload"
+          v-model="settings.shouldAutocompilePython"
         />
-        <span>Prevent view context during live text reload</span>
+        <span>Autocompile Python while editing</span>
       </label>
       <p class="hint">
-        When enabled, parents may choose to temporarily suppress heavy view updates while text is changing rapidly.
+        When enabled, Python code will auto-compile as you edit.
       </p>
     </section>
 

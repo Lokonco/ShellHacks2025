@@ -1,3 +1,4 @@
+<!-- TODO: have a delay setting for text changes to prevent spamming the Python process -->
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 
