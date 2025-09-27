@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import viteLogo from './assets/vite.svg';
 import vueLogo from './assets/vue.svg';
 
@@ -9,6 +10,14 @@ import SettingsWindow from "./components/settings/SettingsWindow.vue";
 
 window.electronAPI.sendMessage('Hello from App.vue!');
 
+// Global-ish settings driving child components
+const preventDuringLive = ref(false)
+
+function onSettingsChange(payload: any) {
+  if (payload && payload.all && typeof payload.all.preventViewContextDuringLiveTextReload === 'boolean') {
+    preventDuringLive.value = payload.all.preventViewContextDuringLiveTextReload
+  }
+}
 
 function onTextChange(value: string) {
   console.log(value);
@@ -26,8 +35,8 @@ function onTextChange(value: string) {
 <!--    </a>-->
 <!--  </div>-->
 <!--  <HelloWorld msg="Vite + Vue" />-->
-  <SettingsWindow></SettingsWindow>
-  <PythonViewContext @text-change="onTextChange" />
+  <SettingsWindow @settings-change="onSettingsChange" />
+  <PythonViewContext :prevent-automatic-code-update="preventDuringLive" @text-change="onTextChange" />
 </template>
 
 <style scoped>

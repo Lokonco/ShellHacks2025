@@ -4,28 +4,30 @@ import { reactive, watch, computed } from 'vue'
 /**
 USAGE DOCS — SettingsWindow.vue
 
-Purpose
-- A self-contained settings panel that emits reactive-like events whenever a setting changes.
-- Designed to feel like Angular signals: consumers can hook into a single "settings-change" event to react to updates.
+What this is
+- A self‑contained settings panel that emits a single "settings-change" event with both granular changes and a full snapshot.
+- Feels like Angular signals: subscribe once; react everywhere.
 
-Key concepts
+Where to render
+- Render exactly once at the application root (e.g., App.vue). Treat it as the source of truth for UI‑driven settings and propagate values to child components via props or a store.
+
+Key behaviors
 - Auto Apply (button boolean):
-  - When enabled, any change is immediately emitted.
-  - When disabled, changes are buffered until the user clicks the Apply button. This is useful to avoid frequent re-renders while editing.
-- Event payloads contain both the fine-grained change and the full settings snapshot so parents can decide how to react.
-- Includes a sample setting: preventViewContextDuringLiveTextReload, demonstrating how a setting could guide the parent to suppress view updates during live text changes.
+  - When enabled, every change emits immediately via 'settings-change' with a change field and an all snapshot.
+  - When disabled, changes are buffered until the user clicks Apply. On Apply, a single 'settings-change' fires with pending[] and the all snapshot.
+- Apply button UX: the button briefly greys out after clicking to indicate activity, but repeat clicks during that brief period won’t emit duplicate apply events.
+- Sample setting provided: preventViewContextDuringLiveTextReload, intended to let parents suppress heavy view updates during rapid text edits.
 
-Emits
+Emitted events
 - 'settings-change': (payload: SettingsChangePayload)
-  Fired whenever a setting changes. If autoApply is true, it's fired immediately; otherwise, it will fire on Apply for all pending changes.
-
+  Fired on each auto‑applied change or once on Apply when batching.
 - 'apply': (settings: Settings)
-  Fired when the user clicks Apply (only meaningful when autoApply is false). This carries the full settings object.
+  Fired when the user clicks Apply (useful if you want a separate hook). Only meaningful when Auto Apply is off.
 
 Types
   type Settings = {
     preventViewContextDuringLiveTextReload: boolean
-    // Add your settings here
+    // Add additional settings here as needed
   }
 
   type SettingsChange = {
@@ -34,49 +36,40 @@ Types
   }
 
   type SettingsChangePayload = {
-    change?: SettingsChange            // Present for per-field updates when autoApply is true
+    change?: SettingsChange            // Present for per‑field updates when autoApply is true
     pending?: SettingsChange[]         // Present when autoApply is false and we apply batched changes
-    all: Settings                      // Snapshot of all settings after the change/apply
-    autoApply: boolean                 // Whether changes are being auto-applied
+    all: Settings                      // Snapshot after the change/apply
+    autoApply: boolean                 // Whether changes are being auto‑applied
     source: 'user' | 'apply'           // Who triggered the emit
   }
 
-How to use in a parent component
-- Minimal example (immediate reactions):
+Recommended usage in App.vue (root‑only)
+  <!-- template pseudo‑usage -->
   <SettingsWindow @settings-change="onSettingsChange" />
+  <PythonViewContext :prevent-during-live="preventDuringLive" />
+  <!-- Pass other settings to other children as needed -->
 
-  function onSettingsChange(payload: SettingsChangePayload) {
-    // You get both fine-grained change and full snapshot
-    // Decide whether to update your stores or re-render views here
-    console.log('settings-change', payload)
-  }
+  // App‑side setup (script)
+  // const preventDuringLive = ref(false)
+  // function onSettingsChange(payload: SettingsChangePayload) {
+  //   // Update central reactive state or a store from the snapshot
+  //   preventDuringLive.value = !!payload.all.preventViewContextDuringLiveTextReload
+  // }
 
-- Batch apply example (suppress frequent re-renders while the user is editing):
-  <SettingsWindow @settings-change="onSettingsChange" />
+Batch apply pattern (to avoid frequent re-renders while editing)
+- You don’t need special handling — just listen for settings-change and react only when payload.source === 'apply' and !payload.autoApply if that suits your logic:
 
   function onSettingsChange(payload: SettingsChangePayload) {
     if (!payload.autoApply && payload.source === 'apply') {
-      // Only react once when the user clicks Apply
-      // payload.pending includes the list of field changes in this batch
-      // payload.all is the full finalized settings snapshot
+      // React once for the whole batch
+      // payload.pending => list of field changes in the batch
+      // payload.all     => finalized settings snapshot
     }
   }
 
-- Preventing a "view context" update during live text reloading (concept):
-  You might want to prevent a dependent view (e.g., PythonViewContext) from re-rendering while text is changing rapidly. Do NOT implement that here; but here is how you would consume the signal:
-
-  <SettingsWindow @settings-change="onSettingsChange" />
-  <PythonViewContext :suppress-view-context="suppressViewContext" />
-
-  const suppressViewContext = ref(false)
-  function onSettingsChange(payload: SettingsChangePayload) {
-    // Drive a parent-level flag based on the setting
-    suppressViewContext.value = payload.all.preventViewContextDuringLiveTextReload
-  }
-
 Notes
-- This file is the only modified file per the issue request.
-- Extend the Settings type and the UI below with additional fields as needed.
+- Render once at the root and fan out values via props, provide/inject, or a store.
+- Extend the Settings type and UI below with additional fields as your app grows.
 */
 
 type Settings = {
@@ -110,13 +103,31 @@ const settings = reactive<Settings>({
 type UIState = {
   autoApply: boolean
   pending: SettingsChange[]
+  applyCoolingDown: boolean
 }
 const ui = reactive<UIState>({
   autoApply: true,
   pending: [],
+  applyCoolingDown: false,
 })
 
 const hasPending = computed(() => !ui.autoApply && ui.pending.length > 0)
+
+// Wire checkboxes via v-model and react with watches to avoid template TS casts
+watch(
+  () => ui.autoApply,
+  (val) => {
+    onToggleAutoApply(val)
+  }
+)
+
+watch(
+  () => settings.preventViewContextDuringLiveTextReload,
+  (val) => {
+    // Emit or queue the change when the setting toggles
+    queueChange({ name: 'preventViewContextDuringLiveTextReload', value: val })
+  }
+)
 
 function queueChange(change: SettingsChange) {
   if (ui.autoApply) {
@@ -155,6 +166,11 @@ function onToggleAutoApply(value: boolean) {
 
 function onApply() {
   if (ui.autoApply) return
+  if (ui.applyCoolingDown) return // allow clicks but skip firing during cooldown
+  ui.applyCoolingDown = true
+  setTimeout(() => {
+    ui.applyCoolingDown = false
+  }, 100)
   emit('settings-change', {
     pending: [...ui.pending],
     all: { ...settings },
@@ -174,14 +190,14 @@ function onApply() {
         <label class="switch">
           <input
             type="checkbox"
-            :checked="ui.autoApply"
-            @change="onToggleAutoApply(($event.target as HTMLInputElement).checked)"
+            v-model="ui.autoApply"
           />
           <span>Auto Apply</span>
         </label>
         <button
           class="apply-btn"
-          :disabled="!hasPending"
+          :class="{ cooling: ui.applyCoolingDown }"
+          :disabled="ui.autoApply"
           @click="onApply"
           title="Apply pending changes"
         >
@@ -194,8 +210,7 @@ function onApply() {
       <label class="switch">
         <input
           type="checkbox"
-          :checked="settings.preventViewContextDuringLiveTextReload"
-          @change="onTogglePreventViewContext(($event.target as HTMLInputElement).checked)"
+          v-model="settings.preventViewContextDuringLiveTextReload"
         />
         <span>Prevent view context during live text reload</span>
       </label>
@@ -235,10 +250,15 @@ function onApply() {
   border: 1px solid #ccc;
   background: #f7f7f7;
   cursor: pointer;
+  transition: opacity 0.15s ease-in-out;
 }
 .apply-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+.apply-btn.cooling {
+  opacity: 0.5; /* greyed out look during cooldown */
+  cursor: pointer; /* still clickable */
 }
 
 .setting {
@@ -258,4 +278,27 @@ function onApply() {
   color: #666;
   font-size: 0.9rem;
 }
+
+/* Accessibility: suppress orange click focus, keep keyboard focus */
+.settings-window :focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
+.settings-window button:focus,
+.settings-window button:active {
+  outline: none;
+  box-shadow: none;
+}
+
+.settings-window input[type="checkbox"]:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* On touch devices, prevent tap highlight */
+.settings-window {
+  -webkit-tap-highlight-color: transparent;
+}
 </style>
+
