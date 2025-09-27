@@ -2,11 +2,19 @@
 import viteLogo from './assets/vite.svg';
 import vueLogo from './assets/vue.svg';
 
+import { ref } from 'vue';
 import HelloWorld from './components/HelloWorld.vue'
 import ThreeSpinningCube from "./components/ThreeSpinningCube.vue";
 import SketchPreview from "./components/SketchPreview.vue";
+import SketchPreviewReload from "./components/SketchPreviewReload.vue";
 
 window.electronAPI.sendMessage('Hello from App.vue!');
+
+// Key to force remount SketchPreview components
+const sketchKey = ref(0);
+function reloadSketchPreviews() {
+  sketchKey.value++;
+}
 </script>
 
 <template>
@@ -20,8 +28,21 @@ window.electronAPI.sendMessage('Hello from App.vue!');
   </div>
 <!--  <HelloWorld msg="Vite + Vue" />-->
   <!-- Test case of using a live preview with hardcoded points for shapes -->
+  <!-- Developer reload button for SketchPreview components -->
+  <SketchPreviewReload @reload="reloadSketchPreviews" />
   <!-- Render a default shape -->
-  <SketchPreview></SketchPreview>
+  <SketchPreview :key="'default-' + sketchKey"></SketchPreview>
+  <!-- Render a triangle shape -->
+  <SketchPreview
+    :key="'triangle-' + sketchKey"
+    :points="[
+      { x: 50, y: 0, z: 0 },
+      { x: 100, y: 100, z: 0 },
+      { x: 0, y: 100, z: 0 }
+    ]"
+    :filled="true"
+    :position="{ x: -100, y: 0 }"
+  ></SketchPreview>
   <ThreeSpinningCube></ThreeSpinningCube>
 </template>
 
