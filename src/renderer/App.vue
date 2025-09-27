@@ -4,6 +4,7 @@ import vueLogo from './assets/vue.svg';
 
 import HelloWorld from './components/HelloWorld.vue'
 import ThreeSpinningCube from "./components/ThreeSpinningCube.vue";
+import SketchPreview from "./components/SketchPreview.vue";
 
 window.electronAPI.sendMessage('Hello from App.vue!');
 </script>
@@ -18,6 +19,9 @@ window.electronAPI.sendMessage('Hello from App.vue!');
     </a>
   </div>
 <!--  <HelloWorld msg="Vite + Vue" />-->
+  <!-- Test case of using a live preview with hardcoded points for shapes -->
+  <!-- Render a default shape -->
+  <SketchPreview></SketchPreview>
   <ThreeSpinningCube></ThreeSpinningCube>
 </template>
 
