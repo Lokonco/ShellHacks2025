@@ -4,6 +4,7 @@ import { ref, watch, onMounted, onBeforeUnmount, computed, nextTick } from 'vue'
 import pyodide from '../../pyodide-loader'
 import {PyodideInterface} from "pyodide";
 import {PythonError} from "pyodide/ffi";
+import PythonErrorPreview from './console/PythonErrorPreview.vue'
 
 // Error info for Approach B (runtime try/catch)
 const compileError = ref<null | {
@@ -311,10 +312,7 @@ onBeforeUnmount(() => {
       Parents can listen like:
       <PythonInputContext @text-change="onTextChange" />
     -->
-    <div v-if="compileError" class="error-box">
-      <div class="err-title">{{ compileError.type }} at line {{ compileError.lineno }}</div>
-      <div class="err-message">{{ compileError.message }}</div>
-    </div>
+    <PythonErrorPreview v-model:error="compileError" />
   </div>
 </template>
 
