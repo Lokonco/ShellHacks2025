@@ -9,8 +9,15 @@ import SketchPreview from "./components/SketchPreview.vue";
 import PythonConsoleOutput from './components/python/console/PythonConsoleOutput.vue'
 import SettingsWindow from "./components/settings/SettingsWindow.vue";
 import ShapeExporter from "./components/ShapeExporter.vue";
+import ToggleRenderView from './components/ToggleRenderView.vue';
 
 pyodide.init()
+
+const currentView = ref<'exporter' | 'preview'>('preview')
+
+function toggleView() {
+  currentView.value = currentView.value === 'preview' ? 'exporter' : 'preview'
+}
 
 // Key to force remount SketchPreview components
 const sketchKey = ref(0);
@@ -156,7 +163,7 @@ const linkedListShapes = [
         <PythonConsoleOutput />
       </div>
 
-      <div class="card">
+      <div>
         <h3>Settings</h3>
         <SettingsWindow @settings-change="onSettingsChange" />
       </div>
@@ -165,17 +172,18 @@ const linkedListShapes = [
     <!-- Right Column: Shape Exporter + Sketch Previews -->
     <div class="right-column">
       <div class="card">
-        <h3>Shape Exporter</h3>
-        <ShapeExporter :point-arrays="dynamicMultiShapes" />
-      </div>
+        <h3>Switch Components</h3>
+        <button @click="toggleView">
+          {{ currentView === 'preview' ? 'Show Exporter' : 'Show Preview' }}
+        </button>
 
-      <div class="card">
-        <h3>Dynamic Sketch Preview</h3>
-        <SketchPreview
+        <component
+          :is="currentView === 'preview' ? SketchPreview : ShapeExporter"
           :shapes="dynamicMultiShapes"
+          :point-arrays="dynamicMultiShapes"
           :canvas_dimensions="{ width: 640, height: 400 }"
         />
-        <SketchPreviewReload @reload="reloadSketchPreviews" />
+        
       </div>
 
       <div class="card">
