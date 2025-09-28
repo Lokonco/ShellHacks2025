@@ -135,9 +135,8 @@ send_points(triangle)
 
 - [x] STL export support
 - [x] Live 3D preview
-- [ ] More geometric primitives
-- [ ] Parameterized objects
-- [ ] Community script library
+- [ ] Geometric primitives
+- [ ] AI Integration
 
 See the [open issues](https://github.com/Lokonco/ShellHacks2025/issues) for a full list.
 
