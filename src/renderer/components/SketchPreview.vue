@@ -117,6 +117,9 @@ onMounted(() => {
       width = window.innerWidth / 2;
       height = window.innerHeight / 10;
     }
+    // Track current view size for camera bounds
+    let viewWidth = width;
+    let viewHeight = height;
 
     // Create Three.js scene and camera
     scene = new THREE.Scene();
@@ -137,6 +140,7 @@ onMounted(() => {
     } else {
       renderer.domElement.style.width = '100%';
       renderer.domElement.style.height = '100%';
+      renderer.domElement.style.objectFit = 'contain';
     }
     renderer.domElement.style.display = 'block';
     container.value.appendChild(renderer.domElement);
@@ -263,8 +267,8 @@ onMounted(() => {
     watch(panOffset, (val) => {
       const z = camera.zoom || 1;
       camera.left = 0 - val.x / z;
-      camera.right = width - val.x / z;
-      camera.top = height + val.y / z;
+      camera.right = viewWidth - val.x / z;
+      camera.top = viewHeight + val.y / z;
       camera.bottom = 0 + val.y / z;
       camera.updateProjectionMatrix();
       drawScene();
@@ -276,8 +280,8 @@ onMounted(() => {
       camera.zoom = clamped;
       const val = panOffset.value;
       camera.left = 0 - val.x / clamped;
-      camera.right = width - val.x / clamped;
-      camera.top = height + val.y / clamped;
+      camera.right = viewWidth - val.x / clamped;
+      camera.top = viewHeight + val.y / clamped;
       camera.bottom = 0 + val.y / clamped;
       camera.updateProjectionMatrix();
       drawScene();
@@ -310,13 +314,16 @@ onMounted(() => {
           newWidth = window.innerWidth / 2;
           newHeight = window.innerHeight;
         }
+        // Update tracked view size
+        viewWidth = newWidth;
+        viewHeight = newHeight;
         renderer.setPixelRatio(window.devicePixelRatio);
-        renderer.setSize(newWidth, newHeight);
+        renderer.setSize(viewWidth, viewHeight);
 
         const z = camera.zoom || 1;
         camera.left = 0 - panOffset.value.x / z;
-        camera.right = newWidth - panOffset.value.x / z;
-        camera.top = newHeight + panOffset.value.y / z;
+        camera.right = viewWidth - panOffset.value.x / z;
+        camera.top = viewHeight + panOffset.value.y / z;
         camera.bottom = 0 + panOffset.value.y / z;
         camera.updateProjectionMatrix();
         drawScene();

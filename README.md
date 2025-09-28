@@ -152,9 +152,37 @@ _Below is an example of how you can instruct your audience on installing and set
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-Use this space to show useful examples of how a project can be used. Additional screenshots, code examples and demos work well in this space. You may also link to more resources.
+### Google GenAI example (Gemini)
 
-_For more examples, please refer to the [Documentation](https://example.com)_
+This project includes a minimal example showing how to use Google's Generative AI (Gemini) SDK in the renderer.
+
+Setup:
+- Install dependencies: `npm install`
+- Ensure the SDK is installed (already in package.json): `npm install @google/generative-ai`
+- Create a .env file at the project root with your API key:
+  
+  VITE_GOOGLE_API_KEY=your_api_key_here
+
+Run the dev app:
+- `npm run dev`
+
+Try the demo:
+- Open the app and look for the "Google GenAI Demo" card in the left column. Enter a prompt and click Generate.
+
+If you want to call the SDK directly in code, you can use the utility provided at `src/renderer/utils/genai.ts`:
+
+import { generateQuickReply } from './src/renderer/utils/genai'
+
+const { text, error } = await generateQuickReply(import.meta.env.VITE_GOOGLE_API_KEY, 'Say hello!')
+if (error) {
+  console.error(error)
+} else {
+  console.log(text)
+}
+
+Notes:
+- For production, prefer calling Gemini from a secure backend rather than the renderer to keep API keys secret.
+- The included demo uses the "gemini-1.5-flash" model by default.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

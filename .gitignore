@@ -4,3 +4,6 @@ build
 
 .vscode
 .idea
+
+# Environment files
+.env

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { CircularLinkedList } from './utils/CircularLinkedList'
 
 import pyodide from './pyodide-loader'
@@ -300,7 +300,25 @@ so it's independent from ShapeExporter, and make it usable on both components, m
 .sketch-window { width: 100%; height: 650px; overflow: hidden; margin: 0 -6px; }
 .sketch-window > * { width: 100%; height: 100%; display: block; }
 
-/* Make canvases fill their container without growing (limit to sketch window) */
-.sketch-window :deep(canvas) { max-width: 100%; width: 100%; height: 100%; display: block; }
+/* Make canvases fill the sketch window without distortion (letterboxed) */
+.sketch-window :deep(canvas) { max-width: 100%; width: 100%; height: 100%; display: block; object-fit: contain; }
+
+/* Square toggle button for switching Settings <-> GenAI Demo */
+.square-toggle {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #333;
+  background: #2b2b2b;
+  color: #eee;
+  border-radius: 6px; /* slight rounding but square shape */
+  cursor: pointer;
+}
+.square-toggle:hover { background: #333; }
+.square-toggle:active { transform: translateY(1px); }
 </style>
 

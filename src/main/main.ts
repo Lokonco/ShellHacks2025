@@ -30,7 +30,7 @@ app.whenReady().then(() => {
       "default-src 'self'",
       "script-src 'self' https://pyscript.net https://cdn.jsdelivr.net" + " 'wasm-unsafe-eval'",
       "style-src 'self' " + "'unsafe-inline' " + "https://pyscript.net",
-      "connect-src 'self' https://pyscript.net https://cdn.jsdelivr.net" + " ws:",
+      "connect-src 'self' https://pyscript.net https://cdn.jsdelivr.net https://generativelanguage.googleapis.com" + " ws:",
       "worker-src 'self' blob:"
     ].join('; ');
 
