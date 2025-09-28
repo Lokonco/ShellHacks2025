@@ -7,6 +7,8 @@ import {PythonError} from "pyodide/ffi";
 import PythonErrorPreview from './console/PythonErrorPreview.vue'
 import pythonConsole from '../../stores/pythonConsole'
 import { installPyToJsSketchBridge } from '../../utils/installPyToJsSketchBridge'
+import ExportButton from '../ExportButton.vue';
+
 
 // Allow parent to pass attrs (class/style) to the editor wrapper
 // so width/height can be controlled externally
@@ -377,9 +379,7 @@ function onIconLeave() {
 </script>
 
 <template>
-
-  <button type="button" id="my_button">run Python</button>
-
+  <!-- TODO: python button where if autocompletion is disabled, have a run button -->
   <div class="python-view-context">
     <label class="input-label" for="python-text-input">Enter text:</label>
 
