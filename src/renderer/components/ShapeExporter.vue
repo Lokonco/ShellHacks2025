@@ -49,9 +49,17 @@ function isPointInPolygon(point, polygon) {
  */
 function createExtrudedMesh() {
   // 1) Convert to Vector2 arrays (rings)
-  const rings = props.pointArrays.map(arr => arr.map(p => new THREE.Vector2(p.x, p.y)));
+  const candidateRings = (Array.isArray(props.pointArrays) ? props.pointArrays : []);
+  const rings = candidateRings
+    .map((entry) => {
+      const pts = Array.isArray(entry) ? entry : (Array.isArray(entry?.points) ? entry.points : []);
+      return pts
+        .map((p) => ({ x: Number(p?.x ?? 0), y: Number(p?.y ?? 0) }))
+        .map((p) => new THREE.Vector2(p.x, p.y));
+    })
+    .filter(r => Array.isArray(r) && r.length >= 3);
   if (!rings.length) {
-    console.error('No point arrays provided.');
+    console.error('No point arrays provided or input format invalid.');
     return null;
   }
 
@@ -205,19 +213,48 @@ function exportSTL() {
   document.body.removeChild(link);
 }
 
+// Remove current mesh from scene and dispose resources
+function clearCurrentMesh() {
+  if (exportableMesh && scene) {
+    scene.remove(exportableMesh);
+    if (exportableMesh.geometry) exportableMesh.geometry.dispose();
+    if (exportableMesh.material) {
+      // Material can be an array or single
+      const mats = Array.isArray(exportableMesh.material) ? exportableMesh.material : [exportableMesh.material];
+      mats.forEach(m => m && m.dispose && m.dispose());
+    }
+    exportableMesh = null;
+  }
+}
+
+// Build mesh from current props and center controls
+function rebuildMesh() {
+  if (!scene) return; // initScene not ready yet
+  clearCurrentMesh();
+  const mesh = createExtrudedMesh();
+  exportableMesh = mesh;
+  if (mesh) {
+    scene.add(mesh);
+    // Center camera target to mesh bounds
+    const box = new THREE.Box3().setFromObject(mesh);
+    const center = box.getCenter(new THREE.Vector3());
+    mesh.position.sub(center);
+    if (controls) {
+      controls.target.copy(new THREE.Vector3(0, 0, 0));
+      controls.update();
+    }
+  }
+}
+
+// Watch for point array changes to auto-update mesh
+watch(() => props.pointArrays, () => {
+  rebuildMesh();
+}, { deep: true });
+
 // Run this when the component is mounted
 onMounted(() => {
   initScene();
-  exportableMesh = createExtrudedMesh();
-  if (exportableMesh) {
-    scene.add(exportableMesh);
-
-    // Center camera on the new mesh
-    const box = new THREE.Box3().setFromObject(exportableMesh);
-    const center = box.getCenter(new THREE.Vector3());
-    exportableMesh.position.sub(center); // Center mesh at origin
-    controls.target.copy(center);
-    controls.update();
-  }
+  // Initial build
+  rebuildMesh();
 });
 </script>
