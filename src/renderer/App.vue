@@ -146,6 +146,8 @@ const linkedListShapes = [
 ];
 </script>
 
+<!-- TODO: Refactor the download button
+so it's independent from ShapeExporter, and make it usable on both components, maybe move it to settings? -->
 <template>
   <div class="app-grid">
 
@@ -171,23 +173,25 @@ const linkedListShapes = [
     </div>
 
     <!-- Right Column: Shape Exporter + Sketch Previews -->
-    <div class="right-column">
-      <div class="card">
-        <h3>Switch Components</h3>
-        <button @click="toggleView">
-          {{ currentView === 'preview' ? 'Show Exporter' : 'Show Preview' }}
-        </button>
+<div class="card">
+  <h3>Switch Components</h3>
+  <button @click="toggleView">
+    {{ currentView === 'preview' ? 'Show Exporter' : 'Show Preview' }}
+  </button>
 
-        <component
-          :is="currentView === 'preview' ? SketchPreview : ShapeExporter"
-          :shapes="dynamicMultiShapes"
-          :point-arrays="dynamicMultiShapes"
-          :canvas_dimensions="{ width: 640, height: 400 }"
-        />
+  <SketchPreview
+    v-if="currentView === 'preview'"
+    :key="currentView"
+    :shapes="dynamicMultiShapes"
+    :canvas_dimensions="{ width: 1200, height: 650 }"
+  />
 
-      </div>
+  <ShapeExporter
+    v-else
+    :point-arrays="dynamicMultiShapes"
+  />
 
-      <div class="card">
+        <div class="card">
         <h3>Test Renders (Hi Don't Look At Me Bye)</h3>
           <!-- Test case of using a live preview with hardcoded points for shapes -->
           <!-- Developer reload button for SketchPreview components -->
@@ -363,14 +367,15 @@ const linkedListShapes = [
     </div>
 
   </div>
+
 </template>
 
 <style scoped>
 .app-grid {
   display: grid;
   grid-template-columns: 1fr 2fr; /* Left column smaller than right */
-  gap: 16px;
-  padding: 16px;
+  gap: 8px;
+  padding: 0;
 }
 
 /* Make each column a vertical flex container */

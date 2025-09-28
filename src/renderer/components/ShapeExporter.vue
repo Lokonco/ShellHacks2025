@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div ref="canvasContainer" style="width: 800px; height: 600px; border: 1px solid black;"></div>
+    <div ref="canvasContainer" style="width: 1200px; height: 600px; border: 1px solid black;"></div>
     <button @click="exportSTL" style="margin-top: 10px;">Export as STL</button>
   </div>
 </template>
@@ -49,15 +49,17 @@ function isPointInPolygon(point, polygon) {
  */
 function createExtrudedMesh() {
   // 1) Convert to Vector2 arrays (rings)
-  // Support two input formats:
-  // 1) Array of point arrays: [[{x,y},...], ...]
-  // 2) Array of shape objects: [{ points: [{x,y},...], ... }, ...]
-  const rings = props.pointArrays.map((entry) => {
-    const pts = Array.isArray(entry?.points) ? entry.points : entry;
-    return (Array.isArray(pts) ? pts : []).map((p) => new THREE.Vector2(Number(p?.x ?? 0), Number(p?.y ?? 0)));
-  });
+  const candidateRings = (Array.isArray(props.pointArrays) ? props.pointArrays : []);
+  const rings = candidateRings
+    .map((entry) => {
+      const pts = Array.isArray(entry) ? entry : (Array.isArray(entry?.points) ? entry.points : []);
+      return pts
+        .map((p) => ({ x: Number(p?.x ?? 0), y: Number(p?.y ?? 0) }))
+        .map((p) => new THREE.Vector2(p.x, p.y));
+    })
+    .filter(r => Array.isArray(r) && r.length >= 3);
   if (!rings.length) {
-    console.error('No point arrays provided.');
+    console.error('No point arrays provided or input format invalid.');
     return null;
   }
 
@@ -165,11 +167,14 @@ function initScene() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xeeeeee);
 
+  const width = canvasContainer.value.clientWidth;
+  const height = canvasContainer.value.clientHeight;
+
   camera = new THREE.PerspectiveCamera(75, 800 / 600, 0.1, 1000);
   camera.position.set(0, 0, 100);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(800, 600);
+  renderer.setSize(width, height);
   canvasContainer.value.appendChild(renderer.domElement);
 
   // Lights
@@ -211,49 +216,48 @@ function exportSTL() {
   document.body.removeChild(link);
 }
 
-// Run this when the component is mounted
-function disposeMesh(mesh) {
-  if (!mesh) return;
-  if (mesh.geometry) mesh.geometry.dispose?.();
-  if (mesh.material) {
-    if (Array.isArray(mesh.material)) {
-      mesh.material.forEach(m => m.dispose?.());
-    } else {
-      mesh.material.dispose?.();
+// Remove current mesh from scene and dispose resources
+function clearCurrentMesh() {
+  if (exportableMesh && scene) {
+    scene.remove(exportableMesh);
+    if (exportableMesh.geometry) exportableMesh.geometry.dispose();
+    if (exportableMesh.material) {
+      // Material can be an array or single
+      const mats = Array.isArray(exportableMesh.material) ? exportableMesh.material : [exportableMesh.material];
+      mats.forEach(m => m && m.dispose && m.dispose());
+    }
+    exportableMesh = null;
+  }
+}
+
+// Build mesh from current props and center controls
+function rebuildMesh() {
+  if (!scene) return; // initScene not ready yet
+  clearCurrentMesh();
+  const mesh = createExtrudedMesh();
+  exportableMesh = mesh;
+  if (mesh) {
+    scene.add(mesh);
+    // Center camera target to mesh bounds
+    const box = new THREE.Box3().setFromObject(mesh);
+    const center = box.getCenter(new THREE.Vector3());
+    mesh.position.sub(center);
+    if (controls) {
+      controls.target.copy(new THREE.Vector3(0, 0, 0));
+      controls.update();
     }
   }
 }
 
-function rebuildMesh() {
-  // Remove previous mesh
-  if (exportableMesh && scene) {
-    scene.remove(exportableMesh);
-    disposeMesh(exportableMesh);
-    exportableMesh = null;
-  }
-  // Build new mesh
-  exportableMesh = createExtrudedMesh();
-  if (exportableMesh && scene && controls) {
-    scene.add(exportableMesh);
-    // Re-center view
-    const box = new THREE.Box3().setFromObject(exportableMesh);
-    const center = box.getCenter(new THREE.Vector3());
-    exportableMesh.position.sub(center);
-    controls.target.copy(new THREE.Vector3(0, 0, 0));
-    controls.update();
-  }
-}
+// Watch for point array changes to auto-update mesh
+watch(() => props.pointArrays, () => {
+  rebuildMesh();
+}, { deep: true });
 
+// Run this when the component is mounted
 onMounted(() => {
   initScene();
+  // Initial build
   rebuildMesh();
 });
-watch(
-  () => props.pointArrays,
-  () => {
-    rebuildMesh();
-  },
-  { deep: true }
-);
-
 </script>

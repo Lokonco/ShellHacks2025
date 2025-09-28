@@ -178,7 +178,6 @@ function onApply() {
 <template>
   <div class="settings-window">
     <header class="settings-header">
-      <h2>Settings</h2>
       <div class="auto-apply">
         <label class="switch">
           <input

@@ -44,6 +44,7 @@ export default {
             } catch (e) {
                 console.warn('Failed to set Pyodide stdio handlers', e)
             }
+
             // after initiating success, execute the callback queue
             this.readyCallbacks.forEach((func) => {
                 func(this.instance!);
@@ -58,5 +59,5 @@ export default {
         } else {
             func(this.instance);
         }
-    },
+    }
 } as PyodideLoader;

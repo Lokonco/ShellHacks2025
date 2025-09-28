@@ -343,20 +343,6 @@ export class CircularLinkedList {
     //--------------------------------//
 
     //--------Geometric Calculations--------//
-    /**
-     * Calculate the perimeter (total distance around the shape)
-     * @returns Total perimeter distance
-     */
-    calculatePerimeter(): number {
-        if (this._size < 2) return 0;
-
-        let perimeter = 0;
-        this.traverse((node, index) => {
-            const nextNode = node.next!;
-            perimeter += node.distanceTo(nextNode);
-        });
-        return perimeter;
-    }
 
     /**
      * Calculate the area enclosed by the polygon using the shoelace formula
