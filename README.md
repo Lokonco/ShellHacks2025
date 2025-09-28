@@ -207,7 +207,7 @@ Project Link: [https://github.com/Lokonco/ShellHacks2025](https://github.com/Lok
 [issues-url]: https://github.com/Lokonco/ShellHacks2025/issues
 [license-shield]: https://img.shields.io/github/license/Lokonco/ShellHacks2025.svg?style=for-the-badge
 [license-url]: https://github.com/Lokonco/ShellHacks2025/blob/main/LICENSE
-[product-screenshot]: https://ibb.co/KpWbdk7L
+[product-screenshot]: https://i.ibb.co/S4B5b80d/Screenshot-2025-09-28-103659.png
 [Vue.js]: https://img.shields.io/badge/Vue.js-35495E?style=for-the-badge&logo=vuedotjs&logoColor=4FC08D
 [Vue-url]: https://vuejs.org/
 [Electron.com]: https://img.shields.io/badge/Electron-47848F?style=for-the-badge&logo=electron&logoColor=white
