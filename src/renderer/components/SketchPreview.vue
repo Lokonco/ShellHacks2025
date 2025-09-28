@@ -45,6 +45,17 @@ const containerStyle = computed(() => {
 //   - position: (optional) {x, y}
 // - canvas_dimensions: Optional { width, height } to fix the canvas size in px (prevents resizing on reload)
 const props = defineProps({
+  // When provided, a single dynamic polyline/polygon to render
+  points: {
+    type: Array,
+    default: null
+  },
+  // Fills the single `points` shape if true; ignored when `shapes` is used
+  filled: {
+    type: Boolean,
+    default: false
+  },
+  // Multiple shapes mode (fallback when `points` is not provided)
   shapes: {
     type: Array,
     default: () => [
@@ -68,8 +79,25 @@ const props = defineProps({
   }
 });
 
-// Internal shapes object for future export (e.g., STL)
-const shapes = ref(props.shapes.map(s => ({ ...s }))); // Deep copy for local use
+// Internal shapes object for rendering
+const shapes = ref([]);
+
+function buildShapesFromProps() {
+  // If `points` provided (and non-empty), prefer single-shape mode
+  if (Array.isArray(props.points) && props.points.length > 0) {
+    shapes.value = [
+      {
+        points: props.points.map(p => ({ x: p.x, y: p.y, z: p.z ?? 0 })),
+        filled: !!props.filled,
+        color: { r: 255, g: 0, b: 0 },
+        position: { x: 0, y: 0 }
+      }
+    ];
+  } else {
+    // Fall back to multi-shape mode
+    shapes.value = (props.shapes || []).map(s => ({ ...s }));
+  }
+}
 
 // Helper: Convert {r,g,b} to THREE.Color
 function rgbToThreeColor(rgb) {
@@ -187,8 +215,23 @@ onMounted(() => {
       drawScene();
     });
 
-    // Initial draw
+    // Build initial data from props and draw
+    buildShapesFromProps();
     drawScene();
+
+    // React to external prop changes
+    watch(() => props.points, () => {
+      buildShapesFromProps();
+      drawScene();
+    }, { deep: true });
+    watch(() => props.filled, () => {
+      buildShapesFromProps();
+      drawScene();
+    });
+    watch(() => props.shapes, () => {
+      buildShapesFromProps();
+      drawScene();
+    }, { deep: true });
 
     // Responsive resizing (only if not fixed size)
     if (!props.canvas_dimensions) {
