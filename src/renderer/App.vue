@@ -145,6 +145,8 @@ const linkedListShapes = [
 ];
 </script>
 
+<!-- TODO: Refactor the download button 
+so it's independent from ShapeExporter, and make it usable on both components, maybe move it to settings? -->
 <template>
   <div class="app-grid">
 
