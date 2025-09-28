@@ -139,94 +139,86 @@ const linkedListShapes = [
 </script>
 
 <template>
-    <ShapeExporter :point-arrays="dynamicMultiShapes"></ShapeExporter>
-  <!-- Python code editor -->
-  <PythonInputContext
-      :prevent-automatic-code-update="preventDuringLive"
-      style="height: 200px; width: 100%;"
-  />
+  <div class="app-grid">
 
-  <!-- Console output below the editor -->
-  <PythonConsoleOutput />
+    <!-- Left Column: Editor + Console + Settings -->
+    <div class="left-column">
+      <div class="card">
+        <h3>Python Editor</h3>
+        <PythonInputContext
+          :prevent-automatic-code-update="preventDuringLive"
+          style="height: 200px; width: 100%;"
+        />
+      </div>
 
-  <!-- Single sketch render that updates via events; supports multiple outlines via send_points_multi -->
-  <SketchPreview
-    :shapes="dynamicMultiShapes"
-    :canvas_dimensions="{ width: 640, height: 400 }"
-  />
-  <SettingsWindow @settings-change="onSettingsChange" />
+      <div class="card">
+        <h3>Console Output</h3>
+        <PythonConsoleOutput />
+      </div>
 
-  <!-- Test case of using a live preview with hardcoded points for shapes -->
-  <!-- Developer reload button for SketchPreview components -->
-  <SketchPreviewReload @reload="reloadSketchPreviews" />
-  <!-- Render a canvas with two shapes from linked lists (triangle and square) -->
-  <SketchPreview
-    :key="'linkedlist-test-' + sketchKey"
-    :shapes="linkedListShapes"
-    :canvas_dimensions="{ width: 300, height: 150 }"
-  />
+      <div class="card">
+        <h3>Settings</h3>
+        <SettingsWindow @settings-change="onSettingsChange" />
+      </div>
+    </div>
 
-<!--  &lt;!&ndash; Render a canvas with a triangle and a square &ndash;&gt;-->
-<!--  <SketchPreview-->
-<!--    :key="'triangle-circle-' + sketchKey"-->
-<!--    :shapes="[-->
-<!--      {-->
-<!--        points: (new CircularLinkedList([-->
-<!--          { x: 50, y: 0 },-->
-<!--          { x: 100, y: 100 },-->
-<!--          { x: 0, y: 100 }-->
-<!--        ])).toSketchPreviewFormat(),-->
-<!--        filled: true,-->
-<!--        color: { r: 0, g: 170, b: 0 },-->
-<!--        position: { x: 100, y: 0 }-->
-<!--      },-->
-<!--      {-->
-<!--        points: (new CircularLinkedList([-->
-<!--          { x: 50, y: 0 },-->
-<!--          { x: 100, y: 25 },-->
-<!--          { x: 100, y: 75 },-->
-<!--          { x: 50, y: 100 },-->
-<!--          { x: 0, y: 75 },-->
-<!--          { x: 0, y: 25 }-->
-<!--        ])).toSketchPreviewFormat(),-->
-<!--        filled: false,-->
-<!--        color: { r: 0, g: 0, b: 255 },-->
-<!--        position: { x: 0, y: 0 }-->
-<!--      }-->
-<!--    ]"-->
-<!--    :canvas_dimensions="{ width: 180, height: 100 }"-->
-<!--  />-->
-<!--  &lt;!&ndash; Render a canvas with a hexagon and a triangle &ndash;&gt;-->
-<!--  <SketchPreview-->
-<!--    :key="'hexagon-triangle-' + sketchKey"-->
-<!--    :shapes="[-->
-<!--      {-->
-<!--        points: (new CircularLinkedList([-->
-<!--          { x: 50, y: 0 },-->
-<!--          { x: 100, y: 25 },-->
-<!--          { x: 100, y: 75 },-->
-<!--          { x: 50, y: 100 },-->
-<!--          { x: 0, y: 75 },-->
-<!--          { x: 0, y: 25 }-->
-<!--        ])).toSketchPreviewFormat(),-->
-<!--        filled: false,-->
-<!--        color: { r: 255, g: 0, b: 255 },-->
-<!--        position: { x: 30, y: 60 }-->
-<!--      },-->
-<!--      {-->
-<!--        points: (new CircularLinkedList([-->
-<!--          { x: 50, y: 0 },-->
-<!--          { x: 100, y: 100 },-->
-<!--          { x: 0, y: 100 }-->
-<!--        ])).toSketchPreviewFormat(),-->
-<!--        filled: true,-->
-<!--        color: { r: 0, g: 170, b: 0 },-->
-<!--        position: { x: 100, y: 0 }-->
-<!--      }-->
-<!--    ]"-->
-<!--    :canvas_dimensions="{ width: 480, height: 400 }"-->
-<!--  />-->
+    <!-- Right Column: Shape Exporter + Sketch Previews -->
+    <div class="right-column">
+      <div class="card">
+        <h3>Shape Exporter</h3>
+        <ShapeExporter :point-arrays="dynamicMultiShapes" />
+      </div>
+
+      <div class="card">
+        <h3>Dynamic Sketch Preview</h3>
+        <SketchPreview
+          :shapes="dynamicMultiShapes"
+          :canvas_dimensions="{ width: 640, height: 400 }"
+        />
+        <SketchPreviewReload @reload="reloadSketchPreviews" />
+      </div>
+
+      <div class="card">
+        <h3>Linked List Shapes</h3>
+        <SketchPreview
+          :key="'linkedlist-test-' + sketchKey"
+          :shapes="linkedListShapes"
+          :canvas_dimensions="{ width: 300, height: 150 }"
+        />
+      </div>
+    </div>
+
+  </div>
 </template>
 
 <style scoped>
+.app-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr; /* Left column smaller than right */
+  gap: 16px;
+  padding: 16px;
+}
+
+/* Make each column a vertical flex container */
+.left-column, .right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Card styling to visually separate components */
+.card {
+  background: #f9f9f9;
+  padding: 6px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.card h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  font-size: 1rem;
+  color: #333;
+}
 </style>
+
