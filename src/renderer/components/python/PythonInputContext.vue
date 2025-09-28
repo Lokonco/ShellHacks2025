@@ -60,6 +60,8 @@ function onTextChange(value: string) {
 }
 
 async function updatePyScript(code: string) {
+  // Save latest code for other components (e.g., exporter) to access
+  try { (await import('../../stores/pythonCode')).default.set(code) } catch {}
   // Reset console for a new compile/run
   pythonConsole.reset()
   pythonConsole.appendSystem('Running Python...\n')

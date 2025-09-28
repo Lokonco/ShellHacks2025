@@ -1,7 +1,14 @@
 <template>
   <div>
     <div ref="canvasContainer" style="width: 800px; height: 600px; border: 1px solid black;"></div>
-    <button @click="exportSTL" style="margin-top: 10px;">Export as STL</button>
+    <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+      <button @click="exportSTL">Export as STL</button>
+      <button @click="exportBatchZip" title="Run Python 20 times and export 20 STL models in a ZIP">Export 20x (ZIP)</button>
+      <label style="margin-left: auto; display: flex; align-items: center; gap: 6px;">
+        <span>Extrude depth</span>
+        <input type="number" min="0" step="0.1" v-model.number="extrudeDepth" style="width: 80px;" />
+      </label>
+    </div>
   </div>
 </template>
 
@@ -10,6 +17,9 @@ import { ref, onMounted, watch } from 'vue';
 import * as THREE from 'three';
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import pyodide from '../pyodide-loader';
+import { installPyToJsSketchBridge } from '../utils/installPyToJsSketchBridge';
+import pythonCode from '../stores/pythonCode';
 
 // Define the component's props to accept the point data
 const props = defineProps({
@@ -23,6 +33,8 @@ const props = defineProps({
 const canvasContainer = ref(null);
 let scene, camera, renderer, controls;
 let exportableMesh = null; // A reference to the mesh we want to export
+// Reactive extrude depth (mm). Changing this automatically rebuilds the mesh.
+const extrudeDepth = ref(10);
 
 /**
  * Point in Polygon (PIP) Test using the Ray Casting Algorithm.
@@ -47,9 +59,10 @@ function isPointInPolygon(point, polygon) {
 /**
  * Main function to create the 3D mesh from the 2D point arrays.
  */
-function createExtrudedMesh() {
+function createExtrudedMesh(fromPointArrays = null) {
   // 1) Convert to Vector2 arrays (rings)
-  const candidateRings = (Array.isArray(props.pointArrays) ? props.pointArrays : []);
+  const source = fromPointArrays !== null ? fromPointArrays : props.pointArrays;
+  const candidateRings = (Array.isArray(source) ? source : []);
   const rings = candidateRings
     .map((entry) => {
       const pts = Array.isArray(entry) ? entry : (Array.isArray(entry?.points) ? entry.points : []);
@@ -153,7 +166,7 @@ function createExtrudedMesh() {
   }
 
   // 4) Extrude all shapes together (supports multiple islands)
-  const extrudeSettings = { steps: 1, depth: 10, bevelEnabled: false };
+  const extrudeSettings = { steps: 1, depth: Number(extrudeDepth.value) || 0, bevelEnabled: false };
   const geometry = new THREE.ExtrudeGeometry(shapes, extrudeSettings);
   const material = new THREE.MeshStandardMaterial({ color: 0x007bff, side: THREE.DoubleSide });
   const mesh = new THREE.Mesh(geometry, material);
@@ -213,6 +226,198 @@ function exportSTL() {
   document.body.removeChild(link);
 }
 
+// Helper: export a mesh to binary STL ArrayBuffer
+function meshToStlArrayBuffer(mesh) {
+  const exporter = new STLExporter();
+  const result = exporter.parse(mesh, { binary: true });
+  if (result instanceof ArrayBuffer) return result;
+  if (ArrayBuffer.isView(result)) return result.buffer;
+  // If text STL, convert to UTF-8 bytes
+  return new TextEncoder().encode(String(result)).buffer;
+}
+
+// Minimal ZIP (store method, no compression)
+function makeZip(files) {
+  // files: [{ name: string, data: ArrayBuffer }]
+  const encoder = new TextEncoder();
+  const records = [];
+  const central = [];
+  let offset = 0;
+
+  const crcTable = (() => {
+    const table = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) {
+        c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+      }
+      table[n] = c >>> 0;
+    }
+    return table;
+  })();
+  function crc32(ab) {
+    const view = new Uint8Array(ab);
+    let c = 0xffffffff;
+    for (let i = 0; i < view.length; i++) {
+      c = crcTable[(c ^ view[i]) & 0xff] ^ (c >>> 8);
+    }
+    return (c ^ 0xffffffff) >>> 0;
+  }
+  function dtDos(date) {
+    // Convert JS Date to DOS time/date
+    const d = date || new Date();
+    const time = ((d.getHours() & 0x1f) << 11) | ((d.getMinutes() & 0x3f) << 5) | ((Math.floor(d.getSeconds() / 2)) & 0x1f);
+    const day = d.getDate();
+    const month = d.getMonth() + 1;
+    const year = d.getFullYear() - 1980;
+    const dosDate = ((year & 0x7f) << 9) | ((month & 0x0f) << 5) | (day & 0x1f);
+    return { time, date: dosDate };
+  }
+
+  for (const f of files) {
+    const nameBytes = encoder.encode(f.name);
+    const data = f.data instanceof ArrayBuffer ? f.data : f.data.buffer;
+    const size = (data.byteLength >>> 0);
+    const crc = crc32(data);
+    const { time, date } = dtDos(new Date());
+
+    // Local file header
+    const lfh = new DataView(new ArrayBuffer(30));
+    let p = 0;
+    lfh.setUint32(p, 0x04034b50, true); p += 4; // signature
+    lfh.setUint16(p, 20, true); p += 2;        // version needed
+    lfh.setUint16(p, 0, true); p += 2;         // flags
+    lfh.setUint16(p, 0, true); p += 2;         // method: 0 store
+    lfh.setUint16(p, time, true); p += 2;      // time
+    lfh.setUint16(p, date, true); p += 2;      // date
+    lfh.setUint32(p, crc, true); p += 4;       // crc32
+    lfh.setUint32(p, size, true); p += 4;      // comp size
+    lfh.setUint32(p, size, true); p += 4;      // uncomp size
+    lfh.setUint16(p, nameBytes.length, true); p += 2; // name len
+    lfh.setUint16(p, 0, true); p += 2;         // extra len
+
+    const localOffset = offset;
+    const record = new Uint8Array(lfh.byteLength + nameBytes.length + size);
+    record.set(new Uint8Array(lfh.buffer), 0);
+    record.set(nameBytes, lfh.byteLength);
+    record.set(new Uint8Array(data), lfh.byteLength + nameBytes.length);
+    records.push(record);
+    offset += record.byteLength;
+
+    // Central directory header
+    const cdfh = new DataView(new ArrayBuffer(46));
+    p = 0;
+    cdfh.setUint32(p, 0x02014b50, true); p += 4; // signature
+    cdfh.setUint16(p, 20, true); p += 2;         // version made by
+    cdfh.setUint16(p, 20, true); p += 2;         // version needed
+    cdfh.setUint16(p, 0, true); p += 2;          // flags
+    cdfh.setUint16(p, 0, true); p += 2;          // method
+    cdfh.setUint16(p, time, true); p += 2;       // time
+    cdfh.setUint16(p, date, true); p += 2;       // date
+    cdfh.setUint32(p, crc, true); p += 4;        // crc32
+    cdfh.setUint32(p, size, true); p += 4;       // comp size
+    cdfh.setUint32(p, size, true); p += 4;       // uncomp size
+    cdfh.setUint16(p, nameBytes.length, true); p += 2; // name len
+    cdfh.setUint16(p, 0, true); p += 2;          // extra len
+    cdfh.setUint16(p, 0, true); p += 2;          // comment len
+    cdfh.setUint16(p, 0, true); p += 2;          // disk start
+    cdfh.setUint16(p, 0, true); p += 2;          // int attrs
+    cdfh.setUint32(p, 0, true); p += 4;          // ext attrs
+    cdfh.setUint32(p, localOffset, true); p += 4;// local header offset
+
+    const cent = new Uint8Array(cdfh.byteLength + nameBytes.length);
+    cent.set(new Uint8Array(cdfh.buffer), 0);
+    cent.set(nameBytes, cdfh.byteLength);
+    central.push(cent);
+  }
+
+  const centralSize = central.reduce((s, u) => s + u.byteLength, 0);
+  const centralOffset = offset;
+
+  const eocd = new DataView(new ArrayBuffer(22));
+  let p2 = 0;
+  eocd.setUint32(p2, 0x06054b50, true); p2 += 4; // signature
+  eocd.setUint16(p2, 0, true); p2 += 2; // number of this disk
+  eocd.setUint16(p2, 0, true); p2 += 2; // disk where central starts
+  eocd.setUint16(p2, central.length, true); p2 += 2; // entries on this disk
+  eocd.setUint16(p2, central.length, true); p2 += 2; // total entries
+  eocd.setUint32(p2, centralSize, true); p2 += 4; // central size
+  eocd.setUint32(p2, centralOffset, true); p2 += 4; // central offset
+  eocd.setUint16(p2, 0, true); p2 += 2; // comment len
+
+  const totalSize = offset + centralSize + eocd.byteLength;
+  const out = new Uint8Array(totalSize);
+  let pos = 0;
+  for (const r of records) { out.set(r, pos); pos += r.byteLength; }
+  for (const c of central) { out.set(c, pos); pos += c.byteLength; }
+  out.set(new Uint8Array(eocd.buffer), pos);
+
+  return new Blob([out], { type: 'application/zip' });
+}
+
+async function exportBatchZip() {
+  const code = pythonCode.get();
+  if (!code || !code.trim()) {
+    alert('No Python code available to run.');
+    return;
+  }
+  const py = await new Promise(resolve => pyodide.onReady(resolve));
+  // Ensure bridge installed to receive events
+  try { installPyToJsSketchBridge(py); } catch {}
+
+  const files = [];
+  for (let i = 1; i <= 20; i++) {
+    const points = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        window.removeEventListener('sketch:multi_points', handler);
+        reject(new Error('Timed out waiting for Python output'));
+      }, 10000);
+      function handler(ev) {
+        clearTimeout(timer);
+        resolve(ev.detail);
+      }
+      window.addEventListener('sketch:multi_points', handler, { once: true });
+      // Kick off python run (async if available)
+      try {
+        if (typeof py.runPythonAsync === 'function') {
+          py.runPythonAsync(code);
+        } else {
+          py.runPython(code);
+        }
+      } catch (e) {
+        clearTimeout(timer);
+        window.removeEventListener('sketch:multi_points', handler);
+        reject(e);
+      }
+    });
+
+    const mesh = createExtrudedMesh(points);
+    if (!mesh) {
+      // create a placeholder text file if mesh failed
+      const ab = new TextEncoder().encode('No mesh generated').buffer;
+      files.push({ name: `model_${String(i).padStart(2,'0')}.txt`, data: ab });
+      continue;
+    }
+    const ab = meshToStlArrayBuffer(mesh);
+    // dispose mesh resources
+    if (mesh.geometry) mesh.geometry.dispose();
+    if (mesh.material) {
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      mats.forEach(m => m && m.dispose && m.dispose());
+    }
+    files.push({ name: `model_${String(i).padStart(2,'0')}.stl`, data: ab });
+  }
+
+  const zipBlob = makeZip(files);
+  const link = document.createElement('a');
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.href = URL.createObjectURL(zipBlob);
+  link.download = 'models_x20.zip';
+  link.click();
+  document.body.removeChild(link);
+}
+
 // Remove current mesh from scene and dispose resources
 function clearCurrentMesh() {
   if (exportableMesh && scene) {
@@ -250,6 +455,11 @@ function rebuildMesh() {
 watch(() => props.pointArrays, () => {
   rebuildMesh();
 }, { deep: true });
+
+// Watch extrude depth changes to auto-update mesh
+watch(extrudeDepth, () => {
+  rebuildMesh();
+});
 
 // Run this when the component is mounted
 onMounted(() => {
