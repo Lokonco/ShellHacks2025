@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div ref="canvasContainer" style="width: 800px; height: 600px; border: 1px solid black;"></div>
+    <div ref="canvasContainer" :style="containerStyle" style="border: 1px solid black;"></div>
     <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
       <button @click="exportSTL">Export as STL</button>
       <button @click="exportBatchZip" title="Run Python 20 times and export 20 STL models in a ZIP">Export 20x (ZIP)</button>
@@ -13,7 +13,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import * as THREE from 'three';
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -27,10 +27,25 @@ const props = defineProps({
   pointArrays: {
     type: Array,
     required: true,
+  },
+  // Optional fixed canvas size, to match SketchPreview behavior
+  canvas_dimensions: {
+    type: Object,
+    default: null // { width, height } or null
   }
 });
 
 const canvasContainer = ref(null);
+// Computed style for container to optionally fix size like SketchPreview
+const containerStyle = computed(() => {
+  if (props.canvas_dimensions && props.canvas_dimensions.width && props.canvas_dimensions.height) {
+    return {
+      width: props.canvas_dimensions.width + 'px',
+      height: props.canvas_dimensions.height + 'px',
+    };
+  }
+  return {};
+});
 let scene, camera, renderer, controls;
 let exportableMesh = null; // A reference to the mesh we want to export
 // Reactive extrude depth (mm). Changing this automatically rebuilds the mesh.
@@ -180,10 +195,10 @@ function initScene() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xeeeeee);
 
-  const width = canvasContainer.value.clientWidth;
-  const height = canvasContainer.value.clientHeight;
+  const width = (props.canvas_dimensions?.width ?? canvasContainer.value.clientWidth) || 800;
+  const height = (props.canvas_dimensions?.height ?? canvasContainer.value.clientHeight) || 600;
 
-  camera = new THREE.PerspectiveCamera(75, 800 / 600, 0.1, 1000);
+  camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
   camera.position.set(0, 0, 100);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
