@@ -139,7 +139,7 @@ const linkedListShapes = [
   },
   {
     points: squareList.toSketchPreviewFormat(),
-    filled: false,
+    filled: true,
     color: { r: 0, g: 128, b: 255 },
     position: { x: 0, y: 0 }
   }
@@ -188,12 +188,177 @@ const linkedListShapes = [
       </div>
 
       <div class="card">
-        <h3>Linked List Shapes</h3>
-        <SketchPreview
-          :key="'linkedlist-test-' + sketchKey"
-          :shapes="linkedListShapes"
-          :canvas_dimensions="{ width: 300, height: 150 }"
-        />
+        <h3>Test Renders (Hi Don't Look At Me Bye)</h3>
+          <!-- Test case of using a live preview with hardcoded points for shapes -->
+          <!-- Developer reload button for SketchPreview components -->
+          <SketchPreviewReload @reload="reloadSketchPreviews" />
+          <!-- Render a canvas with two shapes from linked lists (triangle and square) -->
+          <SketchPreview
+            :key="'linkedlist-test-' + sketchKey"
+            :shapes="linkedListShapes"
+            :canvas_dimensions="{ width: 300, height: 150 }"
+          />
+
+          <!-- Render a canvas with a triangle and a square -->
+          <SketchPreview
+            :key="'triangle-circle-' + sketchKey"
+            :shapes="[
+              {
+                points: (new CircularLinkedList([
+                  { x: 50, y: 0 },
+                  { x: 100, y: 100 },
+                  { x: 0, y: 100 }
+                ])).toSketchPreviewFormat(),
+                filled: true,
+                color: { r: 0, g: 170, b: 0 },
+                position: { x: 0, y: 0 }
+              },
+              {
+                points: (new CircularLinkedList([
+                  { x: 50, y: 0 },
+                  { x: 100, y: 25 },
+                  { x: 100, y: 75 },
+                  { x: 50, y: 100 },
+                  { x: 0, y: 75 },
+                  { x: 0, y: 25 }
+                ])).toSketchPreviewFormat(),
+                filled: false,
+                color: { r: 0, g: 0, b: 255 },
+                position: { x: 0, y: 0 }
+              }
+            ]"
+            :canvas_dimensions="{ width: 180, height: 100 }"
+          />
+          <!-- Render a canvas with a hexagon and a triangle -->
+          <SketchPreview
+            :key="'hexagon-triangle-rectangle' + sketchKey"
+            :shapes="[
+              {
+                points: (new CircularLinkedList([
+                  { x: 50, y: 0 },
+                  { x: 100, y: 25 },
+                  { x: 100, y: 75 },
+                  { x: 50, y: 100 },
+                  { x: 0, y: 75 },
+                  { x: 0, y: 25 }
+                ])).toSketchPreviewFormat(),
+                filled: false,
+                color: { r: 255, g: 0, b: 255 },
+                position: { x: 40, y: 50 }
+              },
+              {
+                points: (new CircularLinkedList([
+                  { x: 50, y: 0 },
+                  { x: 100, y: 100 },
+                  { x: 0, y: 100 }
+                ])).toSketchPreviewFormat(),
+                filled: true,
+                color: { r: 0, g: 170, b: 0 },
+                position: { x: 100, y: 0 }
+              },
+              {
+                points: (new CircularLinkedList([
+                  { x: 0, y: 0 },
+                  { x: 100, y: 0 },
+                  { x: 100, y: 100 },
+                  { x: 0, y: 100 }
+                ])).toSketchPreviewFormat(),
+                filled: true,
+                color: { r: 0, g: 128, b: 255 },
+                position: { x: 50, y: -40 }
+              },
+              { //No fill square cutting into the rectangle
+                points: (new CircularLinkedList([
+                  { x: 0, y: 0 },
+                  { x: 50, y: 0 },
+                  { x: 50, y: 50 },
+                  { x: 0, y: 50 }
+                ])).toSketchPreviewFormat(),
+                filled: false,
+                color: { r: 255, g: 128, b: 0 },
+                position: { x: 90, y: 0 }
+              },
+              { //Tiny filled square inside the empty square
+                points: (new CircularLinkedList([
+                  { x: 0, y: 0 },
+                  { x: 25, y: 0 },
+                  { x: 25, y: 25 },
+                  { x: 0, y: 25 }
+                ])).toSketchPreviewFormat(),
+                filled: true,
+                color: { r: 255, g: 0, b: 0 },
+                position: { x: 110, y: 10 }
+              },
+              { //Tiny empty square inside the tiny filled square
+                points: (new CircularLinkedList([
+                  { x: 0, y: 0 },
+                  { x: 15, y: 0 },
+                  { x: 15, y: 15 },
+                  { x: 0, y: 15 }
+                ])).toSketchPreviewFormat(),
+                filled: false,
+                color: { r: 255, g: 0, b: 0 },
+                position: { x: 115, y: 15 }
+              },
+              //Generate a large square with 4 unfilled squares inside, equedistant to each other
+              {
+                points: (new CircularLinkedList([
+                  { x: 0, y: 0 },
+                  { x: 200, y: 0 },
+                  { x: 200, y: 200 },
+                  { x: 0, y: 200 }
+                ])).toSketchPreviewFormat(),
+                filled: true,
+                color: { r: 0, g: 0, b: 0 },
+                position: { x: 300, y: 0 }
+              },
+              { //Top-left unfilled square
+                points: (new CircularLinkedList([
+                  { x: 0, y: 0 },
+                  { x: 50, y: 0 },
+                  { x: 50, y: 50 },
+                  { x: 0, y: 50 }
+                ])).toSketchPreviewFormat(),
+                filled: false,
+                color: { r: 0, g: 0, b: 0 },
+                position: { x: 410, y: 10 }
+              },
+              { //Top-right unfilled square
+                points: (new CircularLinkedList([
+                  { x: 0, y: 0 },
+                  { x: 50, y: 0 },
+                  { x: 50, y: 50 },
+                  { x: 0, y: 50 }
+                ])).toSketchPreviewFormat(),
+                filled: false,
+                color: { r: 0, g: 0, b: 0 },
+                position: { x: 340, y: 10 }
+              },
+              { //Bottom-left unfilled square
+                points: (new CircularLinkedList([
+                  { x: 0, y: 0 },
+                  { x: 50, y: 0 },
+                  { x: 50, y: 50 },
+                  { x: 0, y: 50 }
+                ])).toSketchPreviewFormat(),
+                filled: false,
+                color: { r: 0, g: 0, b: 0 },
+                position: { x: 340, y: 140 }
+              },
+              { //Bottom-right unfilled square
+                points: (new CircularLinkedList([
+                  { x: 0, y: 0 },
+                  { x: 50, y: 0 },
+                  { x: 50, y: 50 },
+                  { x: 0, y: 50 }
+                ])).toSketchPreviewFormat(),
+                filled: false,
+                color: { r: 0, g: 0, b: 0 },
+                position: { x: 440, y: 140 }
+              }
+            ]"
+            :canvas_dimensions="{ width: 480, height: 400 }"
+          />
       </div>
     </div>
 

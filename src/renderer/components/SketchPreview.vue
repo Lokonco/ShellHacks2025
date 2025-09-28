@@ -146,99 +146,97 @@ onMounted(() => {
       // Remove previous objects
       while (scene.children.length > 0) scene.remove(scene.children[0]);
 
-      // Separate filled and non-filled shapes
-      const filledShapes = shapes.value.filter(s => s.filled);
-      const nonFilledShapes = shapes.value.filter(s => !s.filled);
-
       // Helper: Convert shapeObj to martinez polygon (array of rings)
       function toMartinezPolygon(shapeObj) {
-        // Only outer ring supported for now
         const offsetX = shapeObj.position?.x || 0;
         const offsetY = shapeObj.position?.y || 0;
         const ring = shapeObj.points.map(p => [p.x + offsetX, p.y + offsetY]);
-        // Ensure closed ring
-        if (ring.length > 0 && (ring[0][0] !== ring[ring.length-1][0] || ring[0][1] !== ring[ring.length-1][1])) {
+        if (ring.length > 0 && (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1])) {
           ring.push([ring[0][0], ring[0][1]]);
         }
         return [ring];
       }
 
-      // Render filled shapes with exclusion
-      for (const filled of filledShapes) {
-        let resultPoly = toMartinezPolygon(filled);
-        let hadDiff = false;
-        for (const hole of nonFilledShapes) {
-          const holePoly = toMartinezPolygon(hole);
-          resultPoly = martinez.diff(resultPoly, holePoly);
-          hadDiff = true;
-          if (!resultPoly || resultPoly.length === 0) {
-            console.warn('[SketchPreview] martinez.diff returned empty/null for filled shape', filled, 'with hole', hole);
-            break;
-          }
-        }
-        if (!resultPoly || resultPoly.length === 0) {
-          console.warn('[SketchPreview] Skipping rendering of filled shape due to empty result:', filled);
-          continue;
-        }
-        // resultPoly is MultiPolygon: array of polygons (each polygon is array of rings)
-        const color = rgbToThreeColor(filled.color);
-        let rendered = false;
-        for (const polygon of resultPoly) {
-          // Each polygon may be either:
-          // - an array of rings (first is outer, rest are holes)
-          // - or a single ring (array of points)
-          let outer, holes;
-          if (Array.isArray(polygon[0]) && Array.isArray(polygon[0][0])) {
-            // polygon is array of rings
-            outer = polygon[0];
-            holes = polygon.slice(1);
-          } else if (Array.isArray(polygon[0]) && typeof polygon[0][0] === 'number') {
-            // polygon is a single ring (array of points)
-            outer = polygon;
-            holes = [];
-          } else {
-            console.warn('[SketchPreview] Unexpected polygon structure:', polygon);
-            continue;
-          }
-          // Check for at least 3 unique points in the outer ring (ignore closing point)
-          const uniquePoints = Array.from(new Set(outer.slice(0, -1).map(pt => pt[0] + ',' + pt[1])));
-          if (uniquePoints.length < 3) {
-            console.warn('[SketchPreview] Skipping filled shape polygon with <3 unique points:', outer, filled);
-            continue;
-          }
-          // Convert to THREE.Shape
-          const shape = new THREE.Shape();
-          if (outer.length > 0) {
-            shape.moveTo(outer[0][0], outer[0][1]);
-            for (let i = 1; i < outer.length; i++) {
-              shape.lineTo(outer[i][0], outer[i][1]);
-            }
-          }
-          // Add holes
-          for (const hole of holes) {
-            if (hole.length > 0) {
-              const path = new THREE.Path();
-              path.moveTo(hole[0][0], hole[0][1]);
-              for (let i = 1; i < hole.length; i++) {
-                path.lineTo(hole[i][0], hole[i][1]);
+      // --- REVISED LOGIC: SEQUENTIAL UNION/DIFFERENCE ---
+      let finalResult = [];
+
+      // Process shapes sequentially, handling initialization correctly
+      for (const shape of shapes.value) {
+          const shapePoly = toMartinezPolygon(shape);
+          if (shape.filled) {
+              // If the current result is empty, this shape becomes the initial result.
+              // Otherwise, union this shape with the existing result.
+              if (finalResult.length === 0) {
+                  finalResult = shapePoly;
+              } else {
+                  finalResult = martinez.union(finalResult, shapePoly);
               }
-              shape.holes.push(path);
-            }
+          } else {
+              // If the current result is not empty, subtract this shape (hole).
+              // If the result is empty, we can't subtract, so we do nothing.
+              if (finalResult.length > 0) {
+                  finalResult = martinez.diff(finalResult, shapePoly);
+              }
           }
-          const geometry = new THREE.ShapeGeometry(shape);
-          const material = new THREE.MeshBasicMaterial({ color, wireframe: false });
-          const mesh = new THREE.Mesh(geometry, material);
-          scene.add(mesh);
-          rendered = true;
-        }
-        if (rendered) {
-          console.log('[SketchPreview] Rendered filled shape:', filled);
-        } else {
-          console.warn('[SketchPreview] No polygons rendered for filled shape:', filled);
-        }
       }
 
-      // Render outlines for non-filled shapes
+      // Render the final resulting polygon(s)
+      if (finalResult && finalResult.length > 0) {
+        // NOTE: Individual colors are lost. We use a single color for the result.
+        const finalColor = new THREE.Color(0, 0.5, 1); // A nice blue
+        const material = new THREE.MeshBasicMaterial({ color: finalColor, wireframe: false, side: THREE.DoubleSide });
+
+        for (const polygon of finalResult) {
+            let outer, holes;
+
+            if (!polygon || polygon.length === 0) continue;
+
+            if (Array.isArray(polygon[0]) && Array.isArray(polygon[0][0])) {
+                // Assumes this is a Polygon: [ring, hole, ...]
+                outer = polygon[0];
+                holes = polygon.slice(1);
+            } else if (Array.isArray(polygon[0]) && typeof polygon[0][0] === 'number') {
+                // Assumes this is a single Ring: [point, point, ...]
+                outer = polygon;
+                holes = [];
+            } else {
+                console.warn('[SketchPreview] Unexpected polygon structure:', polygon);
+                continue;
+            }
+
+            if (!outer || outer.length < 3) continue;
+
+            const uniquePoints = new Set(outer.slice(0, -1).map(pt => pt.join(',')));
+            if (uniquePoints.size < 3) continue;
+
+            const shape = new THREE.Shape();
+            if (outer.length > 0) {
+                shape.moveTo(outer[0][0], outer[0][1]);
+                for (let i = 1; i < outer.length; i++) {
+                    shape.lineTo(outer[i][0], outer[i][1]);
+                }
+            }
+
+            for (const hole of holes) {
+                if (hole.length > 2) {
+                    const path = new THREE.Path();
+                    path.moveTo(hole[0][0], hole[0][1]);
+                    for (let i = 1; i < hole.length; i++) {
+                        path.lineTo(hole[i][0], hole[i][1]);
+                    }
+                    shape.holes.push(path);
+                }
+            }
+
+            const geometry = new THREE.ShapeGeometry(shape);
+            const mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+        }
+      }
+      // --- END OF NEW LOGIC ---
+
+      // Render outlines for non-filled shapes so we can see the "masks"
+      const nonFilledShapes = shapes.value.filter(s => !s.filled);
       for (const shapeObj of nonFilledShapes) {
         const offsetX = shapeObj.position?.x || 0;
         const offsetY = shapeObj.position?.y || 0;
@@ -256,16 +254,13 @@ onMounted(() => {
         const material = new THREE.LineBasicMaterial({ color });
         const line = new THREE.LineLoop(geometry, material);
         scene.add(line);
-        console.log('[SketchPreview] Rendered outline for non-filled shape:', shapeObj);
       }
 
       renderer.render(scene, camera);
     }
 
     // --- Panning logic: update camera bounds and redraw on pan ---
-    // This watcher will update the camera's view when panOffset changes
     watch(panOffset, (val) => {
-      // Scale pan by 1/zoomLevel so panning feels consistent at all zooms
       const z = camera.zoom || 1;
       camera.left = 0 - val.x / z;
       camera.right = width - val.x / z;
@@ -277,10 +272,8 @@ onMounted(() => {
 
     // --- Zoom logic: update camera zoom and redraw on zoomLevel change ---
     watch(zoomLevel, (z) => {
-      // Clamp zoom to a reasonable range
       const clamped = Math.max(0.2, Math.min(5, z));
       camera.zoom = clamped;
-      // Also update camera bounds to keep pan consistent with new zoom
       const val = panOffset.value;
       camera.left = 0 - val.x / clamped;
       camera.right = width - val.x / clamped;
@@ -319,15 +312,14 @@ onMounted(() => {
         }
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(newWidth, newHeight);
-        // Update camera to match new logical area, keeping pan and zoom
-  // Keep pan and zoom consistent on resize
-  const z = camera.zoom || 1;
-  camera.left = 0 - panOffset.value.x / z;
-  camera.right = newWidth - panOffset.value.x / z;
-  camera.top = newHeight + panOffset.value.y / z;
-  camera.bottom = 0 + panOffset.value.y / z;
-  camera.updateProjectionMatrix();
-  drawScene();
+
+        const z = camera.zoom || 1;
+        camera.left = 0 - panOffset.value.x / z;
+        camera.right = newWidth - panOffset.value.x / z;
+        camera.top = newHeight + panOffset.value.y / z;
+        camera.bottom = 0 + panOffset.value.y / z;
+        camera.updateProjectionMatrix();
+        drawScene();
       });
       resizeObserver.observe(container.value);
     }
