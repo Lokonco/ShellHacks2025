@@ -282,7 +282,7 @@ div {
     repeating-linear-gradient(to right, #e0e0e0 0, #e0e0e0 1px, transparent 1px, transparent 20px),
     repeating-linear-gradient(to bottom, #e0e0e0 0, #e0e0e0 1px, transparent 1px, transparent 20px);
   border: 2px solid #bbb; /* Subtle border */
-  border-radius: 8px;
+  border-radius: 0;
   box-sizing: border-box;
   margin: 0;
   padding: 0;

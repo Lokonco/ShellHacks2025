@@ -49,13 +49,7 @@ function isPointInPolygon(point, polygon) {
  */
 function createExtrudedMesh() {
   // 1) Convert to Vector2 arrays (rings)
-  // Support two input formats:
-  // 1) Array of point arrays: [[{x,y},...], ...]
-  // 2) Array of shape objects: [{ points: [{x,y},...], ... }, ...]
-  const rings = props.pointArrays.map((entry) => {
-    const pts = Array.isArray(entry?.points) ? entry.points : entry;
-    return (Array.isArray(pts) ? pts : []).map((p) => new THREE.Vector2(Number(p?.x ?? 0), Number(p?.y ?? 0)));
-  });
+  const rings = props.pointArrays.map(arr => arr.map(p => new THREE.Vector2(p.x, p.y)));
   if (!rings.length) {
     console.error('No point arrays provided.');
     return null;
@@ -212,48 +206,18 @@ function exportSTL() {
 }
 
 // Run this when the component is mounted
-function disposeMesh(mesh) {
-  if (!mesh) return;
-  if (mesh.geometry) mesh.geometry.dispose?.();
-  if (mesh.material) {
-    if (Array.isArray(mesh.material)) {
-      mesh.material.forEach(m => m.dispose?.());
-    } else {
-      mesh.material.dispose?.();
-    }
-  }
-}
-
-function rebuildMesh() {
-  // Remove previous mesh
-  if (exportableMesh && scene) {
-    scene.remove(exportableMesh);
-    disposeMesh(exportableMesh);
-    exportableMesh = null;
-  }
-  // Build new mesh
-  exportableMesh = createExtrudedMesh();
-  if (exportableMesh && scene && controls) {
-    scene.add(exportableMesh);
-    // Re-center view
-    const box = new THREE.Box3().setFromObject(exportableMesh);
-    const center = box.getCenter(new THREE.Vector3());
-    exportableMesh.position.sub(center);
-    controls.target.copy(new THREE.Vector3(0, 0, 0));
-    controls.update();
-  }
-}
-
 onMounted(() => {
   initScene();
-  rebuildMesh();
-});
-watch(
-  () => props.pointArrays,
-  () => {
-    rebuildMesh();
-  },
-  { deep: true }
-);
+  exportableMesh = createExtrudedMesh();
+  if (exportableMesh) {
+    scene.add(exportableMesh);
 
+    // Center camera on the new mesh
+    const box = new THREE.Box3().setFromObject(exportableMesh);
+    const center = box.getCenter(new THREE.Vector3());
+    exportableMesh.position.sub(center); // Center mesh at origin
+    controls.target.copy(center);
+    controls.update();
+  }
+});
 </script>

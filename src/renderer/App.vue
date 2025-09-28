@@ -204,7 +204,7 @@ const linkedListShapes = [
   display: grid;
   grid-template-columns: 1fr 2fr; /* Left column smaller than right */
   gap: 16px;
-  padding: 16px;
+  padding: 0;
 }
 
 /* Make each column a vertical flex container */
