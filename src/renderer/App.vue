@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { CircularLinkedList } from './utils/CircularLinkedList'
 
 import pyodide from './pyodide-loader'
@@ -33,7 +33,7 @@ const dynamicMultiShapes = ref<Array<any>>([])
 
 // Demo test data for ShapeExporter.pointArrays
 // Format: Array of polygons, each polygon is an array of {x, y} points (closed rings)
-const demoPointArrays = ref<Array<Array<{ x: number, y: number }>>>([
+ref<Array<Array<{ x: number, y: number }>>>([
   // Outer boundary (big square)
   [
     { x: -20, y: -20 }, { x: 20, y: -20 },
@@ -64,8 +64,7 @@ const demoPointArrays = ref<Array<Array<{ x: number, y: number }>>>([
     {x: -8, y: -8}, {x: -12, y: -8},
     {x: -12, y: -12}
   ]
-])
-
+]);
 function onSketchPoints(ev: Event) {
   const custom = ev as CustomEvent
   dynamicPoints.value = Array.isArray(custom.detail) ? custom.detail : []
@@ -144,12 +143,62 @@ const linkedListShapes = [
     position: { x: 0, y: 0 }
   }
 ];
+
+// --- Resizable Split Columns ---
+const MIN_LEFT = 15; // percent
+const MAX_LEFT = 85; // percent
+const leftPercent = ref(Number(localStorage.getItem('app.split.leftPercent')) || 33.33);
+const gridStyle = computed(() => ({ '--leftCol': leftPercent.value + '%' }));
+let resizing = false;
+
+function computePercent(clientX) {
+  const grid = document.querySelector('.app-grid');
+  if (!grid) return leftPercent.value;
+  const rect = grid.getBoundingClientRect();
+  const x = Math.min(Math.max(clientX - rect.left, 0), rect.width);
+  const pct = (x / rect.width) * 100;
+  return Math.min(MAX_LEFT, Math.max(MIN_LEFT, pct));
+}
+
+function onMouseMove(e) {
+  if (!resizing) return;
+  leftPercent.value = computePercent(e.clientX);
+}
+function onTouchMove(e) {
+  if (!resizing) return;
+  if (e.touches && e.touches[0]) {
+    leftPercent.value = computePercent(e.touches[0].clientX);
+  }
+  // Prevent page scroll during touch drag
+  e.preventDefault();
+}
+
+function startResize() {
+  resizing = true;
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', stopResize);
+}
+function startResizeTouch() {
+  resizing = true;
+  window.addEventListener('touchmove', onTouchMove, { passive: false });
+  window.addEventListener('touchend', stopResize);
+}
+function stopResize() {
+  if (!resizing) return;
+  resizing = false;
+  window.removeEventListener('mousemove', onMouseMove);
+  window.removeEventListener('mouseup', stopResize);
+  window.removeEventListener('touchmove', onTouchMove);
+  window.removeEventListener('touchend', stopResize);
+  try { localStorage.setItem('app.split.leftPercent', String(leftPercent.value)); } catch {}
+}
+
 </script>
 
 <!-- TODO: Refactor the download button
 so it's independent from ShapeExporter, and make it usable on both components, maybe move it to settings? -->
 <template>
-  <div class="app-grid">
+  <div class="app-grid" :style="gridStyle">
 
     <!-- Left Column: Editor + Console + Settings -->
     <div class="left-column">
@@ -170,6 +219,13 @@ so it's independent from ShapeExporter, and make it usable on both components, m
         <h3>Settings</h3>
         <SettingsWindow @settings-change="onSettingsChange" />
       </div>
+    </div>
+
+    <div class="col-resizer"
+         @mousedown="startResize"
+         @touchstart.prevent="startResizeTouch"
+         :title="'Drag to resize columns'">
+      <div class="handle"></div>
     </div>
 
     <!-- Right Column: Shape Exporter + Sketch Previews -->
@@ -200,13 +256,19 @@ so it's independent from ShapeExporter, and make it usable on both components, m
 
 <style scoped>
 .app-grid {
+  --leftCol: 33.33%;
   display: grid;
-  grid-template-columns: 1fr 2fr; /* Left column smaller than right */
+  grid-template-columns: var(--leftCol) 8px calc(100% - var(--leftCol) - 8px);
   gap: 8px;
   padding: 0;
   max-width: 100vw;
   overflow-x: hidden;
+  align-items: stretch;
 }
+
+.col-resizer { cursor: col-resize; position: relative; background: transparent; }
+.col-resizer .handle { position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); width: 6px; background: rgba(0,0,0,0.1); border-radius: 3px; transition: background 0.15s; }
+.col-resizer:hover .handle, .col-resizer:active .handle { background: rgba(0,0,0,0.2); }
 
 /* Make each column a vertical flex container */
 .left-column, .right-column {
@@ -235,7 +297,7 @@ so it's independent from ShapeExporter, and make it usable on both components, m
 .card { overflow: hidden; }
 
 /* Stable sketch window area */
-.sketch-window { width: 100%; height: 650px; overflow: hidden; }
+.sketch-window { width: 100%; height: 650px; overflow: hidden; margin: 0 -6px; }
 .sketch-window > * { width: 100%; height: 100%; display: block; }
 
 /* Make canvases fill their container without growing (limit to sketch window) */
