@@ -5,6 +5,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, defineProps, nextTick, watch } from 'vue';
 import * as THREE from 'three';
+import * as martinez from 'martinez-polygon-clipping';
 
 // Reference to the container div for the Three.js canvas
 const container = ref(null);
@@ -145,8 +146,100 @@ onMounted(() => {
       // Remove previous objects
       while (scene.children.length > 0) scene.remove(scene.children[0]);
 
-      // Loop through all shapes and render each
-      for (const shapeObj of shapes.value) {
+      // Separate filled and non-filled shapes
+      const filledShapes = shapes.value.filter(s => s.filled);
+      const nonFilledShapes = shapes.value.filter(s => !s.filled);
+
+      // Helper: Convert shapeObj to martinez polygon (array of rings)
+      function toMartinezPolygon(shapeObj) {
+        // Only outer ring supported for now
+        const offsetX = shapeObj.position?.x || 0;
+        const offsetY = shapeObj.position?.y || 0;
+        const ring = shapeObj.points.map(p => [p.x + offsetX, p.y + offsetY]);
+        // Ensure closed ring
+        if (ring.length > 0 && (ring[0][0] !== ring[ring.length-1][0] || ring[0][1] !== ring[ring.length-1][1])) {
+          ring.push([ring[0][0], ring[0][1]]);
+        }
+        return [ring];
+      }
+
+      // Render filled shapes with exclusion
+      for (const filled of filledShapes) {
+        let resultPoly = toMartinezPolygon(filled);
+        let hadDiff = false;
+        for (const hole of nonFilledShapes) {
+          const holePoly = toMartinezPolygon(hole);
+          resultPoly = martinez.diff(resultPoly, holePoly);
+          hadDiff = true;
+          if (!resultPoly || resultPoly.length === 0) {
+            console.warn('[SketchPreview] martinez.diff returned empty/null for filled shape', filled, 'with hole', hole);
+            break;
+          }
+        }
+        if (!resultPoly || resultPoly.length === 0) {
+          console.warn('[SketchPreview] Skipping rendering of filled shape due to empty result:', filled);
+          continue;
+        }
+        // resultPoly is MultiPolygon: array of polygons (each polygon is array of rings)
+        const color = rgbToThreeColor(filled.color);
+        let rendered = false;
+        for (const polygon of resultPoly) {
+          // Each polygon may be either:
+          // - an array of rings (first is outer, rest are holes)
+          // - or a single ring (array of points)
+          let outer, holes;
+          if (Array.isArray(polygon[0]) && Array.isArray(polygon[0][0])) {
+            // polygon is array of rings
+            outer = polygon[0];
+            holes = polygon.slice(1);
+          } else if (Array.isArray(polygon[0]) && typeof polygon[0][0] === 'number') {
+            // polygon is a single ring (array of points)
+            outer = polygon;
+            holes = [];
+          } else {
+            console.warn('[SketchPreview] Unexpected polygon structure:', polygon);
+            continue;
+          }
+          // Check for at least 3 unique points in the outer ring (ignore closing point)
+          const uniquePoints = Array.from(new Set(outer.slice(0, -1).map(pt => pt[0] + ',' + pt[1])));
+          if (uniquePoints.length < 3) {
+            console.warn('[SketchPreview] Skipping filled shape polygon with <3 unique points:', outer, filled);
+            continue;
+          }
+          // Convert to THREE.Shape
+          const shape = new THREE.Shape();
+          if (outer.length > 0) {
+            shape.moveTo(outer[0][0], outer[0][1]);
+            for (let i = 1; i < outer.length; i++) {
+              shape.lineTo(outer[i][0], outer[i][1]);
+            }
+          }
+          // Add holes
+          for (const hole of holes) {
+            if (hole.length > 0) {
+              const path = new THREE.Path();
+              path.moveTo(hole[0][0], hole[0][1]);
+              for (let i = 1; i < hole.length; i++) {
+                path.lineTo(hole[i][0], hole[i][1]);
+              }
+              shape.holes.push(path);
+            }
+          }
+          const geometry = new THREE.ShapeGeometry(shape);
+          const material = new THREE.MeshBasicMaterial({ color, wireframe: false });
+          const mesh = new THREE.Mesh(geometry, material);
+          scene.add(mesh);
+          rendered = true;
+        }
+        if (rendered) {
+          console.log('[SketchPreview] Rendered filled shape:', filled);
+        } else {
+          console.warn('[SketchPreview] No polygons rendered for filled shape:', filled);
+        }
+      }
+
+      // Render outlines for non-filled shapes
+      for (const shapeObj of nonFilledShapes) {
         const offsetX = shapeObj.position?.x || 0;
         const offsetY = shapeObj.position?.y || 0;
         const pts = shapeObj.points.map(p => ({
@@ -155,35 +248,17 @@ onMounted(() => {
           z: p.z ?? 0
         }));
         const color = rgbToThreeColor(shapeObj.color);
-        if (shapeObj.filled) {
-          // Filled polygon
-          const shape = new THREE.Shape();
-          if (pts.length > 0) {
-            shape.moveTo(pts[0].x, pts[0].y);
-            for (let i = 1; i < pts.length; i++) {
-              shape.lineTo(pts[i].x, pts[i].y);
-            }
-            shape.lineTo(pts[0].x, pts[0].y); // Close the shape
-          }
-          const geometry = new THREE.ShapeGeometry(shape);
-          const material = new THREE.MeshBasicMaterial({
-            color,
-            wireframe: false
-          });
-          const mesh = new THREE.Mesh(geometry, material);
-          scene.add(mesh);
-        } else {
-          // Outline only
-          const outlinePoints = pts.map(p => new THREE.Vector3(p.x, p.y, p.z));
-          if (outlinePoints.length > 0 && !outlinePoints[0].equals(outlinePoints[outlinePoints.length - 1])) {
-            outlinePoints.push(outlinePoints[0].clone());
-          }
-          const geometry = new THREE.BufferGeometry().setFromPoints(outlinePoints);
-          const material = new THREE.LineBasicMaterial({ color });
-          const line = new THREE.LineLoop(geometry, material);
-          scene.add(line);
+        const outlinePoints = pts.map(p => new THREE.Vector3(p.x, p.y, p.z));
+        if (outlinePoints.length > 0 && !outlinePoints[0].equals(outlinePoints[outlinePoints.length - 1])) {
+          outlinePoints.push(outlinePoints[0].clone());
         }
+        const geometry = new THREE.BufferGeometry().setFromPoints(outlinePoints);
+        const material = new THREE.LineBasicMaterial({ color });
+        const line = new THREE.LineLoop(geometry, material);
+        scene.add(line);
+        console.log('[SketchPreview] Rendered outline for non-filled shape:', shapeObj);
       }
+
       renderer.render(scene, camera);
     }
 

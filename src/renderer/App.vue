@@ -184,7 +184,7 @@ const linkedListShapes = [
           :point-arrays="dynamicMultiShapes"
           :canvas_dimensions="{ width: 640, height: 400 }"
         />
-        
+
       </div>
 
       <div class="card">
