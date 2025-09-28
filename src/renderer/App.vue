@@ -139,7 +139,7 @@ const linkedListShapes = [
 </script>
 
 <template>
-  <ShapeExporter :point-arrays="dynamicMultiShapes"></ShapeExporter>
+    <ShapeExporter :point-arrays="dynamicMultiShapes"></ShapeExporter>
   <!-- Python code editor -->
   <PythonInputContext
       :prevent-automatic-code-update="preventDuringLive"

@@ -379,11 +379,7 @@ function onIconLeave() {
 </script>
 
 <template>
-
-  <button type="button" id="my_button">run Python</button>
-  <ExportButton>Download</ExportButton>
-  
-
+  <!-- TODO: python button where if autocompletion is disabled, have a run button -->
   <div class="python-view-context">
     <label class="input-label" for="python-text-input">Enter text:</label>
 
