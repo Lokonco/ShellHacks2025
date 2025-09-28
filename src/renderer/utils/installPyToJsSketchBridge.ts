@@ -63,7 +63,28 @@ function send_points_multi_registry(g: any) {
 function send_points_registry(g: any) {
     if ((g as any).send_points) return;
     (g as any).send_points = (pyPoints: any) => {
-        point_type([pyPoints]);
+        // Normalize single sequence to JS points array
+        const toArrayOfPoints = (maybeSeq: any) => {
+            const seq = typeof maybeSeq?.toJs === 'function'
+                ? maybeSeq.toJs({dict_converter: Object.fromEntries})
+                : maybeSeq;
+            const arr = Array.from(seq || []);
+            return arr.map((p: any) => ({
+                x: Number(p?.x ?? p?.get?.('x') ?? 0),
+                y: Number(p?.y ?? p?.get?.('y') ?? 0),
+                z: Number(p?.z ?? p?.get?.('z') ?? 0),
+            }));
+        };
+        try {
+            const pts = toArrayOfPoints(pyPoints);
+            // Fire both events so existing listeners work:
+            // - 'sketch:points' for single-shape pipelines
+            // - 'sketch:multi_points' for unified handling as one entry
+            window.dispatchEvent(new CustomEvent('sketch:points', { detail: pts }));
+            window.dispatchEvent(new CustomEvent('sketch:multi_points', { detail: [pts] }));
+        } finally {
+            try { if (pyPoints && typeof pyPoints.destroy === 'function') pyPoints.destroy(); } catch {}
+        }
     }
 }
 
