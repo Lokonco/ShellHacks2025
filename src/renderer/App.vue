@@ -8,6 +8,7 @@ import PythonInputContext from "./components/python/PythonInputContext.vue";
 import SketchPreview from "./components/SketchPreview.vue";
 import PythonConsoleOutput from './components/python/console/PythonConsoleOutput.vue'
 import SettingsWindow from "./components/settings/SettingsWindow.vue";
+import ShapeExporter from "./components/ShapeExporter.vue";
 
 pyodide.init()
 
@@ -19,6 +20,8 @@ function reloadSketchPreviews() {
 
 // Reactive points state updated by events from Python (send_points)
 const dynamicPoints = ref<Array<{x:number,y:number,z:number}>>([])
+// Reactive shapes updated by events from Python (send_points_multi)
+const dynamicMultiShapes = ref<Array<any>>([])
 
 // Demo test data for ShapeExporter.pointArrays
 // Format: Array of polygons, each polygon is an array of {x, y} points (closed rings)
@@ -59,6 +62,28 @@ function onSketchPoints(ev: Event) {
   const custom = ev as CustomEvent
   dynamicPoints.value = Array.isArray(custom.detail) ? custom.detail : []
 }
+
+function onSketchMultiPoints(ev: Event) {
+  const custom = ev as CustomEvent
+  const all = Array.isArray(custom.detail) ? custom.detail : []
+  const colors = [
+    { r: 255, g: 0, b: 0 },
+    { r: 0, g: 128, b: 255 },
+    { r: 0, g: 170, b: 0 },
+    { r: 255, g: 128, b: 0 },
+    { r: 128, g: 0, b: 255 },
+  ]
+  dynamicMultiShapes.value = all.map((arr: any[], idx: number) => ({
+    points: (Array.isArray(arr) ? arr : []).map((p: any) => ({
+      x: Number(p?.x ?? p?.get?.('x') ?? 0),
+      y: Number(p?.y ?? p?.get?.('y') ?? 0),
+      z: Number(p?.z ?? p?.get?.('z') ?? 0),
+    })),
+    filled: false,
+    color: colors[idx % colors.length],
+    position: { x: 0, y: 0 }
+  }))
+}
 // Global-ish settings driving child components
 const preventDuringLive = ref(false)
 
@@ -70,10 +95,12 @@ function onSettingsChange(payload: any) {
 
 onMounted(() => {
   window.addEventListener('sketch:points', onSketchPoints as any)
+  window.addEventListener('sketch:multi_points', onSketchMultiPoints as any)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('sketch:points', onSketchPoints as any)
+  window.removeEventListener('sketch:multi_points', onSketchMultiPoints as any)
 })
 
 // Optionally, notify main for debugging (safe if electronAPI exists)
@@ -112,7 +139,7 @@ const linkedListShapes = [
 </script>
 
 <template>
-  <ShapeExporter :point-arrays="demoPointArrays"></ShapeExporter>
+  <ShapeExporter :point-arrays="dynamicMultiShapes"></ShapeExporter>
   <!-- Python code editor -->
   <PythonInputContext
       :prevent-automatic-code-update="preventDuringLive"
@@ -122,10 +149,9 @@ const linkedListShapes = [
   <!-- Console output below the editor -->
   <PythonConsoleOutput />
 
-  <!-- Single empty sketch render that updates via events -->
+  <!-- Single sketch render that updates via events; supports multiple outlines via send_points_multi -->
   <SketchPreview
-    :points="dynamicPoints"
-    :filled="false"
+    :shapes="dynamicMultiShapes"
     :canvas_dimensions="{ width: 640, height: 400 }"
   />
   <SettingsWindow @settings-change="onSettingsChange" />
@@ -140,66 +166,66 @@ const linkedListShapes = [
     :canvas_dimensions="{ width: 300, height: 150 }"
   />
 
-  <!-- Render a canvas with a triangle and a square -->
-  <SketchPreview
-    :key="'triangle-circle-' + sketchKey"
-    :shapes="[
-      {
-        points: (new CircularLinkedList([
-          { x: 50, y: 0 },
-          { x: 100, y: 100 },
-          { x: 0, y: 100 }
-        ])).toSketchPreviewFormat(),
-        filled: true,
-        color: { r: 0, g: 170, b: 0 },
-        position: { x: 100, y: 0 }
-      },
-      {
-        points: (new CircularLinkedList([
-          { x: 50, y: 0 },
-          { x: 100, y: 25 },
-          { x: 100, y: 75 },
-          { x: 50, y: 100 },
-          { x: 0, y: 75 },
-          { x: 0, y: 25 }
-        ])).toSketchPreviewFormat(),
-        filled: false,
-        color: { r: 0, g: 0, b: 255 },
-        position: { x: 0, y: 0 }
-      }
-    ]"
-    :canvas_dimensions="{ width: 180, height: 100 }"
-  />
-  <!-- Render a canvas with a hexagon and a triangle -->
-  <SketchPreview
-    :key="'hexagon-triangle-' + sketchKey"
-    :shapes="[
-      {
-        points: (new CircularLinkedList([
-          { x: 50, y: 0 },
-          { x: 100, y: 25 },
-          { x: 100, y: 75 },
-          { x: 50, y: 100 },
-          { x: 0, y: 75 },
-          { x: 0, y: 25 }
-        ])).toSketchPreviewFormat(),
-        filled: false,
-        color: { r: 255, g: 0, b: 255 },
-        position: { x: 30, y: 60 }
-      },
-      {
-        points: (new CircularLinkedList([
-          { x: 50, y: 0 },
-          { x: 100, y: 100 },
-          { x: 0, y: 100 }
-        ])).toSketchPreviewFormat(),
-        filled: true,
-        color: { r: 0, g: 170, b: 0 },
-        position: { x: 100, y: 0 }
-      }
-    ]"
-    :canvas_dimensions="{ width: 480, height: 400 }"
-  />
+<!--  &lt;!&ndash; Render a canvas with a triangle and a square &ndash;&gt;-->
+<!--  <SketchPreview-->
+<!--    :key="'triangle-circle-' + sketchKey"-->
+<!--    :shapes="[-->
+<!--      {-->
+<!--        points: (new CircularLinkedList([-->
+<!--          { x: 50, y: 0 },-->
+<!--          { x: 100, y: 100 },-->
+<!--          { x: 0, y: 100 }-->
+<!--        ])).toSketchPreviewFormat(),-->
+<!--        filled: true,-->
+<!--        color: { r: 0, g: 170, b: 0 },-->
+<!--        position: { x: 100, y: 0 }-->
+<!--      },-->
+<!--      {-->
+<!--        points: (new CircularLinkedList([-->
+<!--          { x: 50, y: 0 },-->
+<!--          { x: 100, y: 25 },-->
+<!--          { x: 100, y: 75 },-->
+<!--          { x: 50, y: 100 },-->
+<!--          { x: 0, y: 75 },-->
+<!--          { x: 0, y: 25 }-->
+<!--        ])).toSketchPreviewFormat(),-->
+<!--        filled: false,-->
+<!--        color: { r: 0, g: 0, b: 255 },-->
+<!--        position: { x: 0, y: 0 }-->
+<!--      }-->
+<!--    ]"-->
+<!--    :canvas_dimensions="{ width: 180, height: 100 }"-->
+<!--  />-->
+<!--  &lt;!&ndash; Render a canvas with a hexagon and a triangle &ndash;&gt;-->
+<!--  <SketchPreview-->
+<!--    :key="'hexagon-triangle-' + sketchKey"-->
+<!--    :shapes="[-->
+<!--      {-->
+<!--        points: (new CircularLinkedList([-->
+<!--          { x: 50, y: 0 },-->
+<!--          { x: 100, y: 25 },-->
+<!--          { x: 100, y: 75 },-->
+<!--          { x: 50, y: 100 },-->
+<!--          { x: 0, y: 75 },-->
+<!--          { x: 0, y: 25 }-->
+<!--        ])).toSketchPreviewFormat(),-->
+<!--        filled: false,-->
+<!--        color: { r: 255, g: 0, b: 255 },-->
+<!--        position: { x: 30, y: 60 }-->
+<!--      },-->
+<!--      {-->
+<!--        points: (new CircularLinkedList([-->
+<!--          { x: 50, y: 0 },-->
+<!--          { x: 100, y: 100 },-->
+<!--          { x: 0, y: 100 }-->
+<!--        ])).toSketchPreviewFormat(),-->
+<!--        filled: true,-->
+<!--        color: { r: 0, g: 170, b: 0 },-->
+<!--        position: { x: 100, y: 0 }-->
+<!--      }-->
+<!--    ]"-->
+<!--    :canvas_dimensions="{ width: 480, height: 400 }"-->
+<!--  />-->
 </template>
 
 <style scoped>
