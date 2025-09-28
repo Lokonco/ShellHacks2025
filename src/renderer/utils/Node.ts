@@ -13,6 +13,9 @@ export interface Point2d{
     x: number;
     y: number;
 }
+
+// Type alias for consistency with GeometryUtils
+export type Point2D = Point2d;
 //-----------------------//
 
 //-----Node Definition----//
@@ -55,6 +58,11 @@ export class ListNode {
     setPos(x: number, y:number): void{
         this.x = x;
         this.y = y;
+    }
+
+    //-------Alternative method name for GeometryUtils compatibility-----//
+    setPosition(x: number, y: number): void {
+        this.setPos(x, y);
     }
     //----------------------------//
 
