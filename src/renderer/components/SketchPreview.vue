@@ -5,6 +5,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, defineProps, nextTick, watch } from 'vue';
 import * as THREE from 'three';
+import * as martinez from 'martinez-polygon-clipping';
 
 // Reference to the container div for the Three.js canvas
 const container = ref(null);
@@ -145,8 +146,98 @@ onMounted(() => {
       // Remove previous objects
       while (scene.children.length > 0) scene.remove(scene.children[0]);
 
-      // Loop through all shapes and render each
-      for (const shapeObj of shapes.value) {
+      // Helper: Convert shapeObj to martinez polygon (array of rings)
+      function toMartinezPolygon(shapeObj) {
+        const offsetX = shapeObj.position?.x || 0;
+        const offsetY = shapeObj.position?.y || 0;
+        const ring = shapeObj.points.map(p => [p.x + offsetX, p.y + offsetY]);
+        if (ring.length > 0 && (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1])) {
+          ring.push([ring[0][0], ring[0][1]]);
+        }
+        return [ring];
+      }
+
+      // --- REVISED LOGIC: SEQUENTIAL UNION/DIFFERENCE ---
+      let finalResult = [];
+
+      // Process shapes sequentially, handling initialization correctly
+      for (const shape of shapes.value) {
+          const shapePoly = toMartinezPolygon(shape);
+          if (shape.filled) {
+              // If the current result is empty, this shape becomes the initial result.
+              // Otherwise, union this shape with the existing result.
+              if (finalResult.length === 0) {
+                  finalResult = shapePoly;
+              } else {
+                  finalResult = martinez.union(finalResult, shapePoly);
+              }
+          } else {
+              // If the current result is not empty, subtract this shape (hole).
+              // If the result is empty, we can't subtract, so we do nothing.
+              if (finalResult.length > 0) {
+                  finalResult = martinez.diff(finalResult, shapePoly);
+              }
+          }
+      }
+
+      // Render the final resulting polygon(s)
+      if (finalResult && finalResult.length > 0) {
+        // NOTE: Individual colors are lost. We use a single color for the result.
+        const finalColor = new THREE.Color(0, 0.5, 1); // A nice blue
+        const material = new THREE.MeshBasicMaterial({ color: finalColor, wireframe: false, side: THREE.DoubleSide });
+
+        for (const polygon of finalResult) {
+            let outer, holes;
+
+            if (!polygon || polygon.length === 0) continue;
+
+            if (Array.isArray(polygon[0]) && Array.isArray(polygon[0][0])) {
+                // Assumes this is a Polygon: [ring, hole, ...]
+                outer = polygon[0];
+                holes = polygon.slice(1);
+            } else if (Array.isArray(polygon[0]) && typeof polygon[0][0] === 'number') {
+                // Assumes this is a single Ring: [point, point, ...]
+                outer = polygon;
+                holes = [];
+            } else {
+                console.warn('[SketchPreview] Unexpected polygon structure:', polygon);
+                continue;
+            }
+
+            if (!outer || outer.length < 3) continue;
+
+            const uniquePoints = new Set(outer.slice(0, -1).map(pt => pt.join(',')));
+            if (uniquePoints.size < 3) continue;
+
+            const shape = new THREE.Shape();
+            if (outer.length > 0) {
+                shape.moveTo(outer[0][0], outer[0][1]);
+                for (let i = 1; i < outer.length; i++) {
+                    shape.lineTo(outer[i][0], outer[i][1]);
+                }
+            }
+
+            for (const hole of holes) {
+                if (hole.length > 2) {
+                    const path = new THREE.Path();
+                    path.moveTo(hole[0][0], hole[0][1]);
+                    for (let i = 1; i < hole.length; i++) {
+                        path.lineTo(hole[i][0], hole[i][1]);
+                    }
+                    shape.holes.push(path);
+                }
+            }
+
+            const geometry = new THREE.ShapeGeometry(shape);
+            const mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+        }
+      }
+      // --- END OF NEW LOGIC ---
+
+      // Render outlines for non-filled shapes so we can see the "masks"
+      const nonFilledShapes = shapes.value.filter(s => !s.filled);
+      for (const shapeObj of nonFilledShapes) {
         const offsetX = shapeObj.position?.x || 0;
         const offsetY = shapeObj.position?.y || 0;
         const pts = shapeObj.points.map(p => ({
@@ -155,42 +246,21 @@ onMounted(() => {
           z: p.z ?? 0
         }));
         const color = rgbToThreeColor(shapeObj.color);
-        if (shapeObj.filled) {
-          // Filled polygon
-          const shape = new THREE.Shape();
-          if (pts.length > 0) {
-            shape.moveTo(pts[0].x, pts[0].y);
-            for (let i = 1; i < pts.length; i++) {
-              shape.lineTo(pts[i].x, pts[i].y);
-            }
-            shape.lineTo(pts[0].x, pts[0].y); // Close the shape
-          }
-          const geometry = new THREE.ShapeGeometry(shape);
-          const material = new THREE.MeshBasicMaterial({
-            color,
-            wireframe: false
-          });
-          const mesh = new THREE.Mesh(geometry, material);
-          scene.add(mesh);
-        } else {
-          // Outline only
-          const outlinePoints = pts.map(p => new THREE.Vector3(p.x, p.y, p.z));
-          if (outlinePoints.length > 0 && !outlinePoints[0].equals(outlinePoints[outlinePoints.length - 1])) {
-            outlinePoints.push(outlinePoints[0].clone());
-          }
-          const geometry = new THREE.BufferGeometry().setFromPoints(outlinePoints);
-          const material = new THREE.LineBasicMaterial({ color });
-          const line = new THREE.LineLoop(geometry, material);
-          scene.add(line);
+        const outlinePoints = pts.map(p => new THREE.Vector3(p.x, p.y, p.z));
+        if (outlinePoints.length > 0 && !outlinePoints[0].equals(outlinePoints[outlinePoints.length - 1])) {
+          outlinePoints.push(outlinePoints[0].clone());
         }
+        const geometry = new THREE.BufferGeometry().setFromPoints(outlinePoints);
+        const material = new THREE.LineBasicMaterial({ color });
+        const line = new THREE.LineLoop(geometry, material);
+        scene.add(line);
       }
+
       renderer.render(scene, camera);
     }
 
     // --- Panning logic: update camera bounds and redraw on pan ---
-    // This watcher will update the camera's view when panOffset changes
     watch(panOffset, (val) => {
-      // Scale pan by 1/zoomLevel so panning feels consistent at all zooms
       const z = camera.zoom || 1;
       camera.left = 0 - val.x / z;
       camera.right = width - val.x / z;
@@ -202,10 +272,8 @@ onMounted(() => {
 
     // --- Zoom logic: update camera zoom and redraw on zoomLevel change ---
     watch(zoomLevel, (z) => {
-      // Clamp zoom to a reasonable range
       const clamped = Math.max(0.2, Math.min(5, z));
       camera.zoom = clamped;
-      // Also update camera bounds to keep pan consistent with new zoom
       const val = panOffset.value;
       camera.left = 0 - val.x / clamped;
       camera.right = width - val.x / clamped;
@@ -244,15 +312,14 @@ onMounted(() => {
         }
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.setSize(newWidth, newHeight);
-        // Update camera to match new logical area, keeping pan and zoom
-  // Keep pan and zoom consistent on resize
-  const z = camera.zoom || 1;
-  camera.left = 0 - panOffset.value.x / z;
-  camera.right = newWidth - panOffset.value.x / z;
-  camera.top = newHeight + panOffset.value.y / z;
-  camera.bottom = 0 + panOffset.value.y / z;
-  camera.updateProjectionMatrix();
-  drawScene();
+
+        const z = camera.zoom || 1;
+        camera.left = 0 - panOffset.value.x / z;
+        camera.right = newWidth - panOffset.value.x / z;
+        camera.top = newHeight + panOffset.value.y / z;
+        camera.bottom = 0 + panOffset.value.y / z;
+        camera.updateProjectionMatrix();
+        drawScene();
       });
       resizeObserver.observe(container.value);
     }
@@ -282,7 +349,7 @@ div {
     repeating-linear-gradient(to right, #e0e0e0 0, #e0e0e0 1px, transparent 1px, transparent 20px),
     repeating-linear-gradient(to bottom, #e0e0e0 0, #e0e0e0 1px, transparent 1px, transparent 20px);
   border: 2px solid #bbb; /* Subtle border */
-  border-radius: 0;
+  border-radius: 8px;
   box-sizing: border-box;
   margin: 0;
   padding: 0;

@@ -180,11 +180,14 @@ function initScene() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xeeeeee);
 
+  const width = canvasContainer.value.clientWidth;
+  const height = canvasContainer.value.clientHeight;
+
   camera = new THREE.PerspectiveCamera(75, 800 / 600, 0.1, 1000);
   camera.position.set(0, 0, 100);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(800, 600);
+  renderer.setSize(width, height);
   canvasContainer.value.appendChild(renderer.domElement);
 
   // Lights
