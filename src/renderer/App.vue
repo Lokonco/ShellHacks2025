@@ -6,11 +6,47 @@ import PythonInputContext from "./components/python/PythonInputContext.vue";
 import SketchPreview from "./components/SketchPreview.vue";
 import PythonConsoleOutput from './components/python/console/PythonConsoleOutput.vue'
 import SettingsWindow from "./components/settings/SettingsWindow.vue";
+import ShapeExporter from "./components/ShapeExporter.vue";
 
 pyodide.init()
 
 // Reactive points state updated by events from Python (send_points)
 const dynamicPoints = ref<Array<{x:number,y:number,z:number}>>([])
+
+// Demo test data for ShapeExporter.pointArrays
+// Format: Array of polygons, each polygon is an array of {x, y} points (closed rings)
+const demoPointArrays = ref<Array<Array<{ x: number, y: number }>>>([
+  // Outer boundary (big square)
+  [
+    { x: -20, y: -20 }, { x: 20, y: -20 },
+    { x: 20, y: 20 }, { x: -20, y: 20 },
+    { x: -20, y: -20 }
+  ],
+  // Hole 1 (top-left)
+  [
+    {x: -12, y: 8}, {x: -8, y: 8},
+    {x: -8, y: 12}, {x: -12, y: 12},
+    {x: -12, y: 8}
+  ],
+  // Hole 2 (top-right) 
+  [
+    {x: 8, y: 8}, {x: 12, y: 8},
+    {x: 12, y: 12}, {x: 8, y: 12},
+    {x: 8, y: 8}
+  ],
+  // Hole 3 (bottom-right)
+  [
+    {x: 8, y: -12}, {x: 12, y: -12},
+    {x: 12, y: -8}, {x: 8, y: -8},
+    {x: 8, y: -12}
+  ],
+  // Hole 4 (bottom-left)
+  [
+    {x: -12, y: -12}, {x: -8, y: -12},
+    {x: -8, y: -8}, {x: -12, y: -8},
+    {x: -12, y: -12}
+  ]
+])
 
 function onSketchPoints(ev: Event) {
   const custom = ev as CustomEvent
@@ -38,10 +74,11 @@ try { (window as any).electronAPI?.sendMessage?.('App mounted'); } catch {}
 </script>
 
 <template>
+  <ShapeExporter :point-arrays="demoPointArrays"></ShapeExporter>
   <!-- Python code editor -->
   <PythonInputContext
       :prevent-automatic-code-update="preventDuringLive"
-      style="height: 400px; width: 100%;"
+      style="height: 200px; width: 100%;"
   />
 
   <!-- Console output below the editor -->
