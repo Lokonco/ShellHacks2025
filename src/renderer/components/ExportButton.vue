@@ -53,25 +53,4 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.three-container {
-  position: relative;
-  width: 100%;
-  height: 100vh;
-}
-
-button {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  z-index: 10;
-  padding: 8px 12px;
-  background-color: #42b883;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-button:hover {
-  background-color: #369b6e;
-}
 </style>
