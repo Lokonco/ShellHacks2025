@@ -115,11 +115,15 @@ npm install npm@latest -g
 Write Python scripts to define 3D shapes and export them as STL files ready for 3D printing.
 
 ```python
-# Example: Create a cube
-from pycad import Cube, export
+# Example: Create a triangle
+from js import send_points
 
-shape = Cube(10)  # 10x10x10mm cube
-export(shape, "cube.stl")
+triangle = [
+    {"x": 50,  "y": 0,   "z": 0},
+    {"x": 100, "y": 100, "z": 0},
+    {"x": 0,   "y": 100, "z": 0},
+]
+send_points(triangle)
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -140,16 +144,13 @@ See the [open issues](https://github.com/Lokonco/ShellHacks2025/issues) for a fu
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
-
 <!-- CONTRIBUTING -->
 ## Contributing
 
-Contributions are what make the open source community amazing. Any contributions you make are **greatly appreciated**.
-
 1. Fork the Project  
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)  
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)  
-4. Push to the Branch (`git push origin feature/AmazingFeature`)  
+2. Create your Feature Branch (`git checkout -b feature/name`)  
+3. Commit your Changes (`git commit -m 'Add some name'`)  
+4. Push to the Branch (`git push origin feature/name`)  
 5. Open a Pull Request  
 
 ### Top contributors:
