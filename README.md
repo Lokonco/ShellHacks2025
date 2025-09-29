@@ -136,7 +136,21 @@ send_points_multi(circle_inner, circle_outer)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
+📝 File Overview of Utils
+1. Node.ts
+https://github.com/Lokonco/ShellHacks2025/blob/ebf5ae9dd8c17a1d274cda533a5982d9cc64a26f/src/renderer/utils/Node.ts
+This is the foundation of your geometry system, defining the basic building blocks. It contains the ListNode class which represents individual points in 2D space with x,y coordinates, plus navigation pointers (next/prev) for linking nodes together. Each node can calculate distances to other points and includes optional metadata for storing additional information like IDs or properties.
+2. CircularLinkedList.ts
+https://github.com/Lokonco/ShellHacks2025/blob/ebf5ae9dd8c17a1d274cda533a5982d9cc64a26f/src/renderer/utils/CircularLinkedList.ts
+This is a data structure for representing shapes and polygons. It manages a collection of connected nodes in a circular fashion where the last node connects back to the first, making it perfect for closed shapes. The class provides methods for adding/removing nodes, traversing the shape, finding closest points, and converting to different formats needed by the rendering system.
 
+
+3. GeometryUtils.ts
+https://github.com/Lokonco/ShellHacks2025/blob/ebf5ae9dd8c17a1d274cda533a5982d9cc64a26f/src/renderer/utils/GeometryUtils.ts
+This is your comprehensive CAD toolkit containing all the mathematical operations for working with shapes. It includes area/perimeter calculations, bounding box detection, geometric transformations (scale, rotate, translate), point-in-polygon testing, and advanced CAD features like offset curves and filleting. It also provides shape generators for creating circles, rectangles, and other primitives.
+4. installPyToJsSketchBridge.ts
+https://github.com/Lokonco/ShellHacks2025/blob/ebf5ae9dd8c17a1d274cda533a5982d9cc64a26f/src/renderer/utils/installPyToJsSketchBridge.ts
+This is the critical bridge that connects your Python scripting environment to the JavaScript CAD engine. It exposes all the geometry functions and drawing commands (send_points([]), send_points_multi([]...)), allowing users to write Python scripts that can create, manipulate, and render CAD geometry. It handles data conversion between Python and JavaScript formats and automatically installs all functions as Python builtins for easy access.
 
 <!-- ROADMAP -->
 ## Roadmap
