@@ -126,6 +126,14 @@ triangle = [
 send_points(triangle)
 ```
 
+```python
+from js import send_points_multi
+circle_inner = geometry.generateCircle(200, 50, 25, 16)
+circle_outer = geometry.generateCircle(200, 50, 50, 16)
+send_points_multi(circle_inner, circle_outer)
+```
+
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
