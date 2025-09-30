@@ -26,7 +26,6 @@ const compileError = ref<null | {
 
 // Local state for the text box
 const text = ref('')
-const pyScriptElement = ref<HTMLElement | null>(null)
 
 // Line numbers gutter support
 const textAreaRef = ref<HTMLTextAreaElement | null>(null)
@@ -56,10 +55,10 @@ const emit = defineEmits<{
 // Local handler for text change logic
 function onTextChange(value: string) {
   console.log(value)
-  updatePyScript(value)
+  runPythonCode(value)
 }
 
-async function updatePyScript(code: string) {
+async function runPythonCode(code: string) {
   // Save latest code for other components (e.g., exporter) to access
   try { (await import('../../stores/pythonCode')).default.set(code) } catch {}
   // Reset console for a new compile/run
@@ -117,12 +116,6 @@ async function updatePyScript(code: string) {
       }
   )
 
-  // if (pyScriptElement.value) {
-  //   document.body.removeChild(pyScriptElement.value)
-  // }
-  // pyScriptElement.value = document.createElement('py-script')
-  // document.body.appendChild(pyScriptElement.value)
-  // pyScriptElement.value.textContent = value
 }
 
 // Watch for any change to `text`. If prevention is active, hold off emitting

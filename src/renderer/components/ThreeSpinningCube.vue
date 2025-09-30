@@ -1,11 +1,6 @@
 <!-- TODO: this is a testing class for threejs, remove once functionaly working-->
 <template>
   <div ref="container"></div>
-
-  <py-script>
-    print("hello from component")
-  </py-script>
-
 </template>
 
 <script setup>
